@@ -1,0 +1,345 @@
+public function pdf_guia($id)
+    {
+        try {
+            $guia = GuiaRemision::findOrFail($id);
+            $guia_detalle = GuiaRemisionDetalle::where('id_guia', $id)->get();
+            $empresa = Empresa::findOrFail($guia->id_empresa);
+            $cliente = Clientes::findOrFail($guia->id_cliente);
+
+            // Conductor
+            $conductor_person = $this->user->listar_datos_generales_persona_x_id($guia->id_conductor);
+            $conductor_nombre = trim($conductor_person->person_name .' '.$conductor_person->person_surname .' '.$conductor_person->person_surname2);
+            $conductor_dni = $conductor_person->person_dni;
+
+            $general = new General();
+            $ubigeo_part = $general->listar_ubigeo_x_ubigeo($guia->guia_ubigeo_part);
+            $ubigeo_llega = $general->listar_ubigeo_x_ubigeo($guia->guia_ubigeo_llega);
+
+            if ($guia->guia_tipo === '09') {
+                $guia_tipo = 'REMITENTE';
+                $guia_denominacion_remitente = $empresa->empresa_nombre_comercial;
+                $guia_direccion_remitente = $empresa->empresa_domicilio_fiscal;
+                $guia_num_doc_remitente = $empresa->empresa_ruc;
+                $guia_denominacion_desti = $cliente->cliente_nombre_comercial;
+                $guia_direccion_desti = $cliente->cliente_direccion;
+                $guia_num_doc_desti = $cliente->cliente_numero_documento;
+            } else {
+                $guia_tipo = 'TRANSPORTISTA';
+                $guia_denominacion_remitente = $cliente->cliente_nombre_comercial;
+                $guia_direccion_remitente = $cliente->cliente_direccion;
+                $guia_num_doc_remitente = $cliente->cliente_numero_documento;
+                $guia_denominacion_desti = $guia->guia_denominacion_desti;
+                $guia_direccion_desti = $guia->guia_direccion_desti;
+                $guia_num_doc_desti = $guia->guia_num_doc_desti;
+            }
+
+            $serie_corr = $guia->guia_estado_aprobacion ? "{$guia->guia_serie}-{$guia->guia_correlativo}" : '';
+
+            $partida = $guia->guia_direccion_part;
+            $llegada = strtoupper($guia->guia_direccion_llega);
+
+            $pdf =  new Fpdf();
+            $pdf->AddPage();
+            $pdf->AliasNbPages();
+
+            $pdf->RoundedRect(135, 6, 65, 33, 2, '1234', 'DF');
+            $pdf->RoundedRect(10, 46, 94, 10, 1, '1234', 'DF');
+            $pdf->RoundedRect(107, 46, 94, 10, 1, '1234', 'DF');
+            $pdf->RoundedRect(10, 57, 94, 12, 1, '1234', 'DF');
+            $pdf->RoundedRect(107, 57, 94, 12, 1, '1234', 'DF');
+            $pdf->SetFillColor(255,255,255);
+            $pdf->RoundedRect(10, 71, 190, 5, 1, '1234', 'DF');
+
+            $rutaLogo = public_path('uploads/jl/jl.png');
+            $pdf->Image($rutaLogo, 6, 15, 30, 20);
+
+            $pdf->SetFont('Helvetica','',7);
+            $pdf->Cell(25);
+            $pdf->SetFont('Helvetica','B',10);
+            $pdf->Cell(100,4, utf8_decode($empresa->empresa_razon_social),0,0,'L',0);
+            $pdf->SetFillColor(255,255,255);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(65,6, "GUIA DE REMISION",0,1,'C',0);
+            /*-------------*/
+            $pdf->SetFont('Helvetica','',6);
+            $pdf->Cell(25);
+
+            $pdf->SetFont('Helvetica','B',6);
+            $pdf->Cell(21, 3, 'DOMICILIO FISCAL:', 0, 0, 'L');
+            $pdf->SetFont('Helvetica','',6);
+
+            $domicilio = utf8_decode($empresa->empresa_domicilio_fiscal);
+            $domicilio_corto = strlen($domicilio) > 60 ? substr($domicilio, 0, 65) . '...' : $domicilio;
+            $pdf->Cell(79, 3, $domicilio_corto, 0, 0, 'L');
+
+//            $pdf->Cell(79, 3, utf8_decode($empresa->empresa_domicilio_fiscal), 0, 0, 'L');
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->MultiAlignCell(65,5, utf8_decode($guia_tipo),0,1,'C',0);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(25,3,"",'',0,'C',0);
+            $pdf->SetFont('Helvetica','B',6);
+            $pdf->Cell(25,3,"SUCURSALES:",0,1,'L',0);
+//            $pdf->SetFont('Helvetica','B',12);
+//            $pdf->Cell(65,3,"",0,0,'C',0);
+            /*--------------*/
+//            $pdf->SetFont('Helvetica','',6);
+//            $pdf->Cell(25);
+//            $pdf->SetFont('Helvetica','B',6);
+//            $pdf->MultiAlignCell(100,3, '',0,0,'C',0);
+//            $pdf->SetFont('Helvetica','B',12);
+//            $pdf->Cell(65,3,"",0,1,'C',0);
+
+
+//            $pdf->SetFont('Helvetica','',6);
+//            $pdf->Cell(25);
+//            $pdf->MultiAlignCell(20,3, utf8_decode('PSJE. LAS CAMELIAS S/N - SAN JUAN BAUTISTA-MAYNAS-LORETO'),1,1,'L',0);
+//            $pdf->SetFont('Helvetica','B',12);
+//            $pdf->Cell(315,3,utf8_decode("R.U.C. $empresa->empresa_ruc"),1,1,'C',0);
+
+            $pdf->SetFont('Helvetica','',6);
+            $pdf->Cell(25);
+            $pdf->MultiAlignCell(118,3, utf8_decode('CAL. JOSE OLAYA Mz D Lote 12'),0,0,'L',0);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(30,3,utf8_decode("R.U.C. $empresa->empresa_ruc"),0,1,'C',0);
+
+            $pdf->SetFont('Helvetica','',6);
+            $pdf->Cell(25);
+            $pdf->MultiAlignCell(100,3, utf8_decode('P.J. TENIENTE MANUEL CLAVERO AV. 28 DE JULIO 1749'),0,0,'L',0);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(65,3,"",0,1,'C',0);
+
+            $pdf->SetFont('Helvetica','',6);
+            $pdf->Cell(25);
+            $pdf->MultiAlignCell(100,3, utf8_decode("CALLE JOSÉ PÉREZ LOZANO 301"),0,0,'L',0);
+            $pdf->SetFont('Helvetica','B',12);
+            $pdf->Cell(65,3,utf8_decode("$serie_corr"),0,1,'C',0);
+
+            if(empty($guia->guia_emision)){
+                $guia_emision = '---';
+            }else{
+                $guia_emision = date('d-m-Y',strtotime($guia->guia_emision));
+            }
+            $pdf->Ln(3);
+            $pdf->SetFont('Helvetica','B',8);
+            $pdf->Cell(25,4,utf8_decode("FECHA EMISIÓN"),0,0,"L",0);
+            $pdf->SetFont('Helvetica','',8);
+            $pdf->Cell(25,4,": $guia_emision",0,0,"L",0);
+            $pdf->SetFont('Helvetica','B',8);
+            $pdf->Cell(48,4,"FECHA DE INICIO DE TRASLADO",0,0,"L",0);
+            $pdf->SetFont('Helvetica','',8);
+            $guia_fecha_traslado= date('d-m-Y', strtotime($guia->guia_fecha_traslado));
+            $pdf->Cell(25,4,": $guia_fecha_traslado",0,1,"L",0);
+
+            $pdf->Ln(6);
+            $pdf->SetFont('Helvetica','B',5);
+            $pdf->Cell(93,3,"DIRECCION DE PARTIDA",0,0,"C",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(93,3,"DIRECCION DE LLEGADA",0,1,"C",0);
+            $pdf->SetFont('Helvetica','',5);
+            $pdf->Cell(13,3,"DIRECCION:",0,0,"L",0);
+            $pdf->Cell(80,3,utf8_decode($partida),0,0,"L",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(13,3,"DIRECCION:",0,0,"L",0);
+            $pdf->Cell(80,3,utf8_decode($llegada),0,1,"L",0);
+
+            $pdf->SetFont('Helvetica','B',5);
+            $pdf->Cell(13,3,"DISTRITO:",0,0,"L",0);
+            $pdf->Cell(20,3,"$ubigeo_part->ubigeo_distrito",'B',0,"L",0);
+            $pdf->Cell(13,3,"PROVINCIA:",0,0,"L",0);
+            $pdf->Cell(15,3,"$ubigeo_part->ubigeo_provincia",'B',0,"L",0);
+            $pdf->Cell(8,3,"DPTO:",0,0,"L",0);
+            $pdf->Cell(24,3,"$ubigeo_part->ubigeo_departamento",'B',0,"L",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+
+            /*  LLEGADA  */
+            $pdf->SetFont('Helvetica','B',5);
+            $pdf->Cell(13,3,"DISTRITO:",0,0,"L",0);
+            $pdf->Cell(20,3,"$ubigeo_llega->ubigeo_distrito",'B',0,"L",0);
+            $pdf->Cell(13,3,"PROVINCIA:",0,0,"L",0);
+            $pdf->Cell(15,3,"$ubigeo_llega->ubigeo_provincia",'B',0,"L",0);
+            $pdf->Cell(8,3,"DPTO:",0,0,"L",0);
+            $pdf->Cell(24,3,"$ubigeo_llega->ubigeo_departamento",'B',1,"L",0);
+
+            /*  Remitente  */
+            $pdf->Ln(2);
+            $pdf->SetFont('Helvetica','B',5);
+            $pdf->Cell(93,3,"REMITENTE",0,0,"C",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(93,3,"DESTINATARIO",0,1,"C",0);
+            $pdf->SetFont('Helvetica','',5);
+            $pdf->Cell(13,3,"SR(ES):",0,0,"L",0);
+            $pdf->Cell(80,3,utf8_decode($guia_denominacion_remitente),0,0,"L",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(13,3,"SR(ES):",0,0,"L",0);
+            $pdf->Cell(80,3,"$guia_denominacion_desti",0,1,"L",0);
+
+            $pdf->Cell(13,3,"DIRECCION: ",0,0,"L",0);
+            $pdf->Cell(80,3,utf8_decode($guia_direccion_remitente),0,0,"L",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(13,3,"DIRECCION: ",0,0,"L",0);
+            $pdf->Cell(80,3,utf8_decode($guia_direccion_desti),0,1,"L",0);
+
+            $pdf->Cell(13,3,"RUC: ",0,0,"L",0);
+            $pdf->Cell(80,3,"$guia_num_doc_remitente",0,0,"L",0);
+            $pdf->Cell(4,3,"",0,0,"L",0);
+            $pdf->Cell(13,3,"RUC: ",0,0,"L",0);
+            $pdf->Cell(80,3,"$guia_num_doc_desti",0,1,"L",0);
+
+            $pdf->Ln(2);
+            $pdf->SetFillColor(255,255,255);
+            $pdf->SetFont('Helvetica','B',7);
+            $pdf->Cell(11, 6, utf8_decode('CÓDIGO'), 0,0,'C',0);
+            $pdf->Cell(100, 6, utf8_decode('DESCRIPCIÓN'),0,0,'C',0);
+            $pdf->Cell(19, 6, 'CANTIDAD',0,0,'C',0);
+            $pdf->Cell(20, 6, 'PESO-'. $guia->guia_unidad_medida,0,0,'C',0);
+            $pdf->Cell(20, 6, 'U.M',0,0,'C',0);
+            $pdf->Cell(20, 6, utf8_decode('COSTO MÍNIMO'),0,1,'C',0);
+            $pdf->SetWidths(array(11,100,19,20,20,20));
+            $pdf->SetFont('Helvetica','',8);
+
+            $item = 1;
+            foreach ($guia_detalle as $p){
+                $pdf->Row_(array($item,
+                    $p->guia_remision_detalle_descripcion,
+                    $p->guia_remision_detalle_cantidad ,
+                    $p->guia_remision_peso,
+                    $p->guia_remision_detalle_um,'---'),
+                    $item);
+                $item++;
+            }
+            $num = 21 - ($item*1);
+
+            for ($i = 1 ;$i<=$num; $i++){
+                $pdf->Row_(array('','','' ,'','',''),$item);
+                $item++;
+            }
+
+            if($guia->guia_tipo == '09'){
+                if($guia->guia_tipo_trans=='01'){
+                    $tipo_trans = 'TRANSPORTE PÚBLICO';
+                }else{
+                    $tipo_trans = 'TRANSPORTE PRIVADO';
+                }
+                $val_bulto=$guia->guia_n_bulto;
+                $true_rem = true;
+                $true_trans = false;
+            }else{
+                $tipo_trans = '';
+                $val_bulto='';
+                $true_rem = false;
+                $true_trans = true;
+            }
+
+//            switch ($guia->guia_motivo){
+//                case "01": $motivo = "VENTA";  break;
+//                case "02": $motivo = "COMPRA"; break;
+//                case "03": $motivo = "VENTA CON ENTREGA A TERCEROS"; break;
+//                case "04": $motivo = "TRASLADO ENTRE ESTABLECIMIENTOS"; break;
+//                case "05": $motivo = "CONSIGNACIÓN"; break;
+//                case "06": $motivo = "DEVOLUCIÓN"; break;
+//                case "07": $motivo = "RECOJO DE BIENES TRANSFORMADOS"; break;
+//                case "08": $motivo = "IMPORTACION"; break;
+//                case "09": $motivo = "EXPORTACION"; break;
+//                case "13": $motivo = "OTROS"; break;
+//                case "14": $motivo = "VENTA SUJETA A CONFIRMACION DEL COMPRADOR"; break;
+//                case "17": $motivo = "TRASLADO DE BIENES PARA TRANSFORMACIÓN"; break;
+//                case "18": $motivo = "TRASLADO EMISOR ITINERANTE CP"; break;
+//            }
+
+            $pdf->Ln(2);
+            $pdf->SetFont('Helvetica','B',7);
+            $pdf->Cell(35, 3, utf8_decode('MARCA VEHÍCULO: '),0,0,'L',0);
+
+            $pdf->Cell(35, 3, "$guia->vehiculo_marca",'B',0,'L',0);
+            $pdf->Cell(10);
+            $pdf->Cell(35, 3, 'TIPO TRANSPORTE: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$tipo_trans",'B',1,'L',0);
+
+            $pdf->Cell(35, 3, 'PLACA VEHICULAR: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_placa",'B',0,'L',0);
+            $pdf->Cell(10);
+            $pdf->Cell(35, 3, 'PESO BRUTO: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_peso_bruto",'B',1,'L',0);
+
+            $pdf->Cell(35, 3, 'PLACA DE CARRETA: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_carreta",'B',0,'L',0);
+            $pdf->Cell(10);
+            $pdf->Cell(35, 3, utf8_decode('NÚMERO BULTO: '),0,0,'L',0);
+            $pdf->Cell(35, 3, "$val_bulto",'B',1,'L',0);
+
+            $pdf->Cell(35, 3, 'CERTIFICADO (MTC): ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_certificado_mtc",'B',0,'L',0);
+            $pdf->Cell(10);
+            $pdf->Cell(35, 3, 'UNIDAD DE MEDIDA: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_unidad_medida",'B',1,'L',0);
+
+            $pdf->Cell(35, 3, 'LICENCIA DE CONDUCIR: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "$guia->guia_licencia_conductor",'B',0,'L',0);
+            $pdf->Cell(10);
+            $pdf->Cell(35, 3, 'MOTIVO: ',0,0,'L',0);
+            $pdf->Cell(35, 3, "",'B',1,'L',0);
+
+            $pdf->Ln(3);
+            $pdf->Cell(35, 3, 'OBSERVACIONES: ',0,0,'L',0);
+            $pdf->Cell(115, 3, utf8_decode($guia->guia_observacion),'B',1,'L',0);
+
+            $pdf->Ln(6);
+            $pdf->Cell(60, 6, $empresa->empresa_nombre, 0, 0, 'C');
+            $pdf->Cell(5, 6, '', 0, 0, 'L');
+            $pdf->Cell(60, 6, $cliente->cliente_nombre, 0, 0, 'C');
+            $pdf->Cell(10, 6, '', 0, 1, 'L');
+
+            // 11. Envío al navegador
+            $pdfName = "GUIA-{$guia_tipo}-{$serie_corr}.pdf";
+            $pdf->Output('', $pdfName,false,$guia->fecha_creacion);
+            exit;
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            abort(500, 'Error generando PDF de Guía.');
+        }
+    }
+
+
+
+
+public function listar_datos_generales_persona_x_id($id){
+        try {
+
+            $result = DB::table('person')
+                ->where('id_person','=',$id)
+                ->first();
+
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            $result = [];
+        }
+
+        return $result;
+    }
+
+
+
+public function listar_ubigeo_x_ubigeo($ubigeo){
+        try{
+            $result = DB::table('ubigeos')
+                ->where('ubigeo_cod', '=', $ubigeo)
+                ->first();
+        }catch (\Exception $e){
+            $result = [];
+        }
+        return $result;
+    }
+
+
+
+public function listar_ubigeo_x_ubigeo($ubigeo){
+        try{
+            $result = DB::table('ubigeos')
+                ->where('ubigeo_cod', '=', $ubigeo)
+                ->first();
+        }catch (\Exception $e){
+            $result = [];
+        }
+        return $result;
+    }
+

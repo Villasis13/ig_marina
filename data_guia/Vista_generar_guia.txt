@@ -1,0 +1,1158 @@
+<div>
+    <style>
+        .suggestion-list {
+            list-style: none;
+            position: absolute;
+            z-index: 999;
+            background: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            width: 520px;
+            margin: 0;
+            padding: 0;
+            left: 3.5%;
+        }
+
+        .cliente-sugerido {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .cliente-sugerido:hover {
+            background-color: #4451B6;
+            color: #fff;
+        }
+
+        .observacion-collapse {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.17s ease-in-out;
+        }
+        .observacion-collapse.open {
+            max-height: 100px;
+        }
+    </style>
+    <x-modal-general wire:ignore.self >
+        <x-slot name="id_modal">modalAgregarCliente</x-slot>
+        <x-slot name="titleModal">Agregar Cliente Para la Guía</x-slot>
+        <x-slot name="modalContent">
+            <form wire:submit.prevent="saveCliente">
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <label for="id_cliente_referencia" class="form-label">Cliente Referencia</label>
+                        <x-input-general
+                            type="text"
+                            id="id_cliente_referencia"
+                            wire:model.live="BuscarClienteReferencia"
+                            onfocus="document.getElementById('lista_clientes_referenciar').style.display = 'block'"
+                            onblur="setTimeout(() => { document.getElementById('lista_clientes_referenciar').style.display = 'none' }, 200)"
+                        />
+                        <div id="lista_clientes_referenciar" @if(!$mostrarListaClientes) style="display: none;" @endif>
+                            @if(!empty($clientes_buscados))
+                                <ul class="suggestion-list">
+                                    @foreach($clientes_buscados as $c)
+                                        <li class="cliente-sugerido" wire:click="traerDatosCliente('{{ base64_encode($c->id_cliente) }}')">
+                                            {{ $c->cliente_nombre_comercial . ' - ' . $c->cliente_numero_documento }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+
+                    </div>
+                    <div class="col-6 mb-3">
+                        <x-input-general type="hidden" id="id_cliente" wire:model="id_cliente" />
+                        <label for="id_tipo_documento" class="form-label">Tipo de documento (*)</label>
+                        <select
+                            @if(!$mostrar) disabled @endif
+                            id="id_tipo_documento" wire:model="id_tipo_documento" class="form-select">
+                            <option value="">Seleccionar</option>
+                            @foreach($tipo_documento as $td)
+                                <option value="{{$td->id_tipo_documento}}">{{$td->tipo_documento_identidad}}</option>
+                            @endforeach
+                        </select>
+                        @error('id_tipo_documento')
+                        <span class="message-error">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label for="cliente_numero_documento" class="form-label">Número de documento (*)</label>
+                        <x-input-general type="text" id="cliente_numero_documento" wire:change="consultarDocumento" wire:model="cliente_numero_documento"/>
+                        @error('cliente_numero_documento')
+                        <span class="message-error">{{ $message }}</span>
+                        @enderror
+                        <div wire:loading wire:target="consultarDocumento">
+                            Consultando información
+                        </div>
+                        @if($messageConsulta)
+                            <span class="text-{{$messageConsulta['type']}} d-block">{{$messageConsulta['mensaje']}}</span>
+                        @endif
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label for="cliente_razon_social" class="form-label">Razón Social (*)</label>
+                        <x-input-general
+                            :readonly="!$mostrar"
+                            type="text" id="cliente_razon_social" wire:model="cliente_razon_social"
+                        />
+                        @error('cliente_razon_social')
+                        <span class="message-error">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    @if($mostrar)
+                        <div class="col-12 mb-3">
+                            <label for="cliente_nombre_comercial" class="form-label">Nombre Comercial (*)</label>
+                            <x-input-general type="text" id="cliente_nombre_comercial" wire:model="cliente_nombre_comercial"/>
+                            @error('cliente_nombre_comercial')
+                            <span class="message-error">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="col-5 mb-3">
+                            <label for="cliente_telefono" class="form-label">N° Teléfono</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="basic-addon1">+51</span>
+                                <x-input-general type="text" onkeyup="validar_numeros(this.id)" id="cliente_telefono" wire:model="cliente_telefono"/>
+                            </div>
+                            @error('cliente_telefono')
+                            <span class="message-error">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="col-7 mb-3">
+                            <label for="cliente_correo" class="form-label">Correo</label>
+                            <x-input-general type="text" id="cliente_correo" wire:model="cliente_correo"/>
+                            @error('cliente_correo')
+                            <span class="message-error">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label for="cliente_direccion" class="form-label">Dirección</label>
+                            <textarea id="cliente_direccion" wire:model="cliente_direccion" class="form-control" rows="3"></textarea>
+                            @error('cliente_direccion')
+                            <span class="message-error">{{ $message }}</span>
+                            @enderror
+                        </div>
+                    @endif
+                    <div class="col-lg-12 col-md-12 col-sm-12">
+                        @if (session()->has('error'))
+                            <div class="alert alert-danger alert-dismissible show fade">
+                                {{ session('error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="col-lg-12 col-md-12 col-sm-12 mt-3 text-end">
+                        <button type="button" data-bs-dismiss="modal" class="btn btn-secondary">Cerrar</button>
+                        <button type="submit" class="btn btn-success text-white">Guardar Registro</button>
+                    </div>
+                </div>
+            </form>
+        </x-slot>
+    </x-modal-general>
+    <div class="row">
+        <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Datos Generales -->
+                    <div class="row mb-4" style="margin-left: 4px;">
+                        <!-- Campos de empresa y tipo de guía -->
+                        <div class="col-md-3">
+                            <label for="id_empresa" class="form-label fw-bold text-primary">Empresa Contratante</label>
+                            <select class="form-select"
+                                    wire:model.live="id_empresa"
+                                    id="id_empresa"
+                                    name="id_empresa">
+                                @foreach($empresas as $m)
+                                    @if(!empty($m->empresa_gre_id))
+                                        <option value="{{ $m->id_empresa }}">
+                                            {{ $m->empresa_razon_social }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="tipo_guia" class="form-label fw-bold text-primary">Tipo de Guía</label>
+                            <select wire:model="tipo_guia"
+                                    id="tipo_guia"
+                                    class="form-select">
+                                <option value="09">GUÍA DE REMISIÓN REMITENTE</option>
+                                <option value="31">GUÍA DE REMISIÓN TRANSPORTISTA</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="id_serie" class="form-label fw-bold text-primary">Serie</label>
+                            <select wire:model="id_serie"
+                                    id="id_serie"
+                                    class="form-select">
+                                <option value="" disabled>Seleccionar</option>
+                                @foreach($series as $serie)
+                                    <option value="{{ $serie->id_serie }}">
+                                        {{ $serie->serie }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="correlativo" class="form-label fw-bold text-primary">Correlativo</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="correlativo"
+                                   name="correlativo"
+                                   wire:model="correlativo"
+                                   value="{{ $correlativo }}" readonly>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="fecha_emision" class="form-label fw-bold text-primary">Fecha Emisión</label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="fecha_emision"
+                                   name="fecha_emision"
+                                   wire:model.live="fecha_emision"
+                                   value="{{ $fecha_emision }}" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-4" style="margin-left: 4px;">
+                        <!-- Campos de empresa y tipo de guía -->
+{{--                        <div class="col-md-3">--}}
+{{--                            <label for="id_cliente" class="form-label fw-bold text-primary">Cliente</label>--}}
+{{--                            <select class="form-select"--}}
+{{--                                    wire:model="id_cliente"--}}
+{{--                                    name="id_cliente"--}}
+{{--                                    id="id_cliente">--}}
+{{--                                <option value="">Seleccionar...</option>--}}
+{{--                                @foreach($clientes_ as $m)--}}
+{{--                                    <option value="{{ $m->id_cliente }}"--}}
+{{--                                            @if($m->id_cliente == $cliente_creado) selected @endif>--}}
+{{--                                        {{$m->cliente_numero_documento}} - {{ $m->cliente_razon_social }}--}}
+{{--                                    </option>--}}
+{{--                                @endforeach--}}
+{{--                            </select>--}}
+{{--                        </div>--}}
+
+                        <div class="col-md-3 position-relative" wire:click.away="cerrarListaClientes">
+                            <label for="buscar_clientes" class="form-label fw-bold text-primary">Cliente</label>
+{{--                            <div class="loader mt-2 w-100"--}}
+{{--                                 wire:loading--}}
+{{--                                 wire:target="buscarClientes, seleccionarCliente">--}}
+{{--                            </div>--}}
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control"
+                                       placeholder="Buscar cliente..."
+                                       id="buscar_clientes"
+                                       wire:model="buscar_clientes"
+                                       wire:keyup="buscarClientes"
+                                       autocomplete="off">
+                            </div>
+
+                            @if($abrirListaClientes)
+                                <div class="position-absolute w-100 bg-white list-group shadow" style="z-index: 999; max-height: 200px; overflow-y: auto;">
+                                    @forelse($listaClientes as $cliente)
+                                        <a href="javascript:void(0)" class="list-group-item list-group-item-action px-2 py-1" wire:click="seleccionarCliente('{{ base64_encode($cliente->id_cliente) }}')">
+                                            {{ $cliente->cliente_numero_documento }} – {{ $cliente->cliente_razon_social }}
+                                        </a>
+                                    @empty
+                                        <div class="list-group-item text-muted">
+                                            No hay resultados...
+                                        </div>
+                                    @endforelse
+                                </div>
+                            @endif
+                            <input type="hidden" wire:model="id_cliente"/>
+                            <input type="hidden" wire:model="cliente_ruc">
+                            @error('id_cliente')
+                            <span class="text-danger">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+{{--                        <div class="col-md-1 align-content-center">--}}
+{{--                            <x-btn-export wire:click="clear_form" class="btn btn-primary" style="margin-top: 25px;" data-bs-toggle="modal" data-bs-target="#modalAgregarCliente">--}}
+{{--                                <x-slot name="tooltip">--}}
+{{--                                    Agregar Cliente--}}
+{{--                                </x-slot>--}}
+{{--                                <x-slot name="icons">fa fa-user-circle</x-slot>--}}
+{{--                            </x-btn-export>--}}
+{{--                        </div>--}}
+
+                        <div class="col-md-1 align-content-end">
+                            <button
+                                wire:click="clear_form"
+                                type="button"
+                                class="btn btn-primary w-100"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalAgregarCliente"
+                                title="Agregar Cliente">
+                                <i class="fa fa-user-circle"></i>
+                            </button>
+                        </div>
+
+                        @if($mostrar_transportista)
+                            <div class="col-md-3">
+                                <label for="tipo_trans_transportista" class="form-label fw-bold text-primary">Tipo de Transporte</label>
+                                <select class="form-select"
+                                        wire:model.live="tipo_trans_transportista"
+                                        name="tipo_trans_transportista"
+                                        id="tipo_trans_transportista">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="1">TERRESTRE</option>
+                                    <option value="3">FLUVIAL</option>
+                                </select>
+                                @error('tipo_trans_transportista')
+                                <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        @endif
+
+                        @if($mostrar_remitente)
+                            <div class="col-md-3">
+                                <label for="tipo_trans" class="form-label fw-bold text-primary">Tipo de Transporte</label>
+                                <select class="form-select"
+                                        wire:model.live="tipo_trans"
+                                        name="tipo_trans"
+                                        id="tipo_trans">
+                                    <option value="01">TRANSPORTE PÚBLICO</option>
+                                    <option value="02" selected>TRANSPORTE PRIVADO</option>
+                                </select>
+                                @error('tipo_trans')
+                                <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        @endif
+
+                        @if($mostrar_remitente)
+                            <div class="col-md-2">
+                                <label for="motivo_tras" class="form-label fw-bold text-primary">Motivo de Traslado</label>
+                                <select class="form-select"
+                                        wire:model.live="motivo_tras"
+                                        name="motivo_tras"
+                                        id="motivo_tras">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="01">VENTA</option>
+                                    <option value="02">COMPRA</option>
+                                    <option value="04">TRASLADO ENTRE ESTABLECIMIENTOS</option>
+                                    <option value="05">CONSIGNACIÓN</option>
+                                    <option value="08">IMPORTACION</option>
+                                    <option value="09">EXPORTACION</option>
+                                    <option value="13" selected >OTROS</option>
+                                    <option value="14">VENTA SUJETA A CONFIRMACION DEL COMPRADOR</option>
+                                    <option value="17">TRASLADO DE BIENES PARA TRANSFORMACIÓN</option>
+                                    <option value="18">TRASLADO EMISOR ITINERANTE CP</option>
+                                </select>
+                                @error('motivo_tras')
+                                <span class="text-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        @endif
+
+                        @if($mostrar_remitente && $mostrar_detalle)
+                            <div class="col-md-3">
+                                <label for="motivo_tras_otros" class="form-label fw-bold text-primary">Detalle OTROS</label>
+                                <textarea class="form-control"
+                                          wire:model="motivo_tras_otros"
+                                          name="motivo_tras_otros"
+                                          id="motivo_tras_otros"
+                                          rows="1">
+                                </textarea>
+                            </div>
+                        @endif
+                    </div>
+
+                    @if (session()->has('success'))
+                        <div class="alert alert-success alert-dismissible show fade mt-2">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    <!-- Datos Traslado -->
+                    <div class="accordion-item border-top border-bottom">
+                        <div class="accordion-header bg-light-primary">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#traslado" wire:ignore.self>
+                                <i class="fas fa-car me-2"></i> Datos del Traslado
+                            </button>
+                        </div>
+                        <div id="traslado" class="accordion-collapse collapse" wire:ignore.self>
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label for="fecha_tras" class="form-label">Fecha Traslado</label>
+                                        <input type="date" class="form-control"
+                                               wire:model="fecha_tras"
+                                               wire:change="validarFechaTras"
+                                               name="fecha_tras"
+                                               id="fecha_tras"
+                                                value="{{ $fecha_tras }}">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label for="peso_bruto" class="form-label">Peso Bruto</label>
+                                        <input type="text" value="{{ $peso_bruto }}" class="form-control"
+                                               wire:model="peso_bruto"
+                                               name="peso_bruto"
+                                               id="peso_bruto"
+                                               onkeyup="validar_numeros_decimales_dos(this.id)" readonly>
+                                        @error('peso_bruto')
+                                        <span class="text-danger">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label for="peso_unidad_medida" class="form-label">Peso - unidad de medida</label>
+                                        <select class="form-select"
+                                                wire:model.live="peso_unidad_medida"
+                                                name="peso_unidad_medida"
+                                                id="peso_unidad_medida">
+                                            <option value="KGM" selected>KGM - KILOGRAMO</option>
+                                            <option value="TNE" >TNE - TONELADA</option>
+                                        </select>
+                                        @error('peso_unidad_medida')
+                                        <span class="text-danger">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+
+                                    @if($mostrar_remitente)
+                                        <div class="col-md-3">
+                                            <label for="numero_bultos" class="form-label">N° de Bultos</label>
+                                            <input type="text" value="0" class="form-control"
+                                                   wire:model="numero_bultos"
+                                                   name="numero_bultos"
+                                                   id="numero_bultos"
+                                                   onkeyup="validar_numeros_decimales_dos(this.id)">
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items -->
+                    <div class="card mb-3 mt-3">
+                        <div class="card-header bg-primary text-white d-flex align-items-center">
+                            <i class="fas fa-boxes me-2"></i>
+                            Items a Transportar
+                            @if($stockSeleccionado !== null)
+                                <div class="col-md-3 ms-auto text-end">
+                                    Stock disponible: <strong>{{ $stockSeleccionado }}</strong>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-hover">
+                                <div class="col-lg-12 col-md-12 col-sm-12">
+                                    <div class="loader mt-2 w-100" wire:loading wire:target="agregarItem, eliminarItem"></div>
+                                </div>
+                                <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Concepto</th>
+                                    <th>U.M</th>
+                                    <th>Cantidad</th>
+                                    <th>Peso <span>{{ $peso_unidad_medida }}</span></th>
+                                    <th>Acción</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($items as $index => $item)
+                                    <tr>
+                                        <td>
+                                            {{ $index + 1 }}
+                                        </td>
+                                        <td>
+{{--                                            {{ $item['descripcion'] }}--}}
+{{--                                            {{ collect($concepto_producto)->firstWhere('nombre_item_general', $item['descripcion'])->nombre_item_general ?? $item['descripcion'] }}--}}
+                                            @php
+                                                $p = collect($concepto_producto)->firstWhere('nombre_item_general', $item['descripcion']);
+                                            @endphp
+
+                                            @if($p)
+                                                {{ $p->nombre_item_general }}
+                                            @else
+                                                {{ $item['descripcion'] }}
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{ collect($unidades)->firstWhere('medida_codigo_unidad', $item['um_guia'])->medida_codigo_unidad ?? $item['um_guia'] }}
+                                        </td>
+                                        <td>
+                                            {{ number_format($item['cant_guia'], 2) }}
+                                        </td>
+                                        <td>
+                                            {{ number_format($item['peso_item'], 2) }}
+                                        </td>
+                                        <td>
+                                            <button wire:click="eliminarItem({{ $index }})" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+
+                                <!-- Fila -->
+                                <tr>
+                                    <td>{{ count($items) + 1 }}</td>
+                                    <td>
+{{--                                        <textarea wire:model="descripcion"--}}
+{{--                                                  name="descripcion"--}}
+{{--                                                  id="descripcion"--}}
+{{--                                                  cols="50"--}}
+{{--                                                  rows="2"--}}
+{{--                                                  maxlength="250"--}}
+{{--                                                  style="font-size: 10pt;"--}}
+{{--                                                  class="form-control">--}}
+{{--                                        </textarea>--}}
+
+                                        <select id="descripcion" type="text" class="form-control" name="descripcion" wire:model.live="descripcion">
+                                            @foreach($concepto_producto as $m)
+                                                <option value="{{ $m->nombre_item_general }}" {{ $m->nombre_item_general == 'LLAMAGAS 10KG' ? 'selected' : '' }}>
+                                                    {{ $m->nombre_item_general }} ({{ $m->stock }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('descripcion') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </td>
+                                    <td>
+                                        <select id="um_guia" type="text" class="form-control" name="um_guia" wire:model="um_guia">
+                                            @foreach($unidades as $m)
+                                                <option value="{{ $m->medida_codigo_unidad }}" {{ $m->medida_codigo_unidad == 'NIU' ? 'selected' : '' }}>
+                                                    {{ $m->medida_nombre }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input wire:model="cant_guia"
+                                               style="background: #fff !important;color:#000 !important;text-align: right"
+                                               id="cant_guia" type="text"
+                                               class="form-control"
+                                               onkeyup="return validar_numeros_decimales_tres(this.id)">
+                                        @error('cant_guia') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </td>
+                                    <td>
+                                        <input wire:model="peso_item"
+                                               style="background: #fff !important;color:#000 !important;text-align: right"
+                                               id="peso_item"
+                                               type="text"
+                                               class="form-control"
+                                               onkeyup="return validar_numeros_decimales_tres(this.id)">
+                                        @error('peso_item') <span class="text-danger">{{ $message }}</span> @enderror
+                                    </td>
+                                    <td>
+                                        <button wire:click="agregarItem" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Datos Transportista -->
+                    <div class="accordion-item border-top">
+                        <div class="accordion-header bg-light-primary">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#transportista" wire:ignore.self>
+                                <i class="fas fa-user-check me-2"></i> Datos del Transportista
+                            </button>
+                        </div>
+                        @if (session()->has('error'))
+                            <div class="alert alert-danger alert-dismissible show fade mt-2">
+                                {{ session('error') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        @endif
+                        <div id="transportista" class="accordion-collapse collapse" wire:ignore.self>
+                            <div class="accordion-body">
+                                <div class="row g-3 mb-4">
+                                    @if($mostrar_remitente)
+                                        <div class="col-md-4">
+                                            <label for="tipo_documento_trans" class="form-label">Tipo Documento</label>
+                                            <select class="form-control"
+                                                    wire:model.live="tipo_documento_trans"
+                                                    name="tipo_documento_trans"
+                                                    id="tipo_documento_trans">
+                                                <option value="6">RUC</option>
+                                            </select>
+                                            @error('tipo_documento_trans')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    @endif
+
+                                    @if($mostrar_remitente)
+                                        <div class="col-md-4">
+                                            <label for="numero_doc_trans" class="form-label">N° Documento</label>
+                                            <input type="text" class="form-control"
+                                                   wire:model="numero_doc_trans"
+                                                   wire:blur="validarNumeroDocTrans"
+                                                   name="numero_doc_trans"
+                                                   id="numero_doc_trans" onkeyup="validar_numeros(this.id)">
+                                            @error('numero_doc_trans')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    @endif
+                                    @if($mostrar_remitente)
+                                        <div class="col-md-4">
+                                            <label for="denominacion_trans" class="form-label">Transporte Denominación</label>
+                                            <input type="text" class="form-control"
+                                                   wire:model="denominacion_trans"
+                                                   name="denominacion_trans"
+                                                   id="denominacion_trans" onkeyup="mayuscula(this.id)">
+                                            @error('denominacion_trans')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-12 col-sm-12 mb-2">
+                                        <div class="custom-control custom-switch">
+                                            <input type="checkbox"
+                                                   wire:model.live="checkPlacaM"
+                                                   class="custom-control-input"
+                                                   name="checkPlacaM"
+                                                   id="checkPlacaM">
+                                            <label class="custom-control-label" for="checkPlacaM">¿Ingreso Manual?</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        @if(!$mostrarManualInput)
+                                            <div id="ContainerSelectPlaca">
+                                                <label for="num_placa_trans" class="form-label">Transportista Nº Placa</label>
+                                                <select wire:model.live="num_placa_trans"
+                                                        name="num_placa_trans"
+                                                        id="num_placa_trans"
+                                                        class="form-control">
+                                                    <option value="" selected>seleccionar...</option>
+                                                    @foreach($vehiculosFiltrados as $v)
+                                                        <option value="{{ $v['vehiculo_placa'] }}">
+                                                            {{ $v['vehiculo_placa'] }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        @else
+                                            <div id="containerInputPlaca">
+                                                <label for="num_placa_trans_manual" class="form-label">Nº Placa</label>
+                                                <input type="text"
+                                                       wire:model="num_placa_trans_manual"
+                                                       id="num_placa_trans_manual"
+                                                       name="num_placa_trans_manual"
+                                                       class="form-control">
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    @if($mostrar_transportista)
+                                        <div class="col-md-3">
+                                            <label for="tuc_vehiculo" class="form-label">TUC Vehículo principal</label>
+                                            <input type="text" class="form-control"
+                                                   wire:model="tuc_vehiculo"
+                                                   id="tuc_vehiculo"
+                                                   name="tuc_vehiculo"
+                                                   placeholder="(opcional)">
+                                        </div>
+                                    @endif
+
+                                    <div class="col-md-3">
+                                        <label for="certificado_mtc" class="form-label">Certificado (MTC)</label>
+                                        <input type="text" class="form-control"
+                                               wire:model="certificado_mtc"
+                                               id="certificado_mtc"
+                                               name="certificado_mtc"
+                                               placeholder="(opcional)">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label for="carreta" class="form-label">Carreta</label>
+                                        <input type="text"
+                                               class="form-control"
+                                               wire:model="carreta"
+                                               name="carreta"
+                                               id="carreta"
+                                               placeholder="(opcional)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conductor -->
+                    @if($mostrar_transporte)
+                        <div class="accordion-item border-top">
+                            <div class="accordion-header bg-light-primary">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#conductor" wire:ignore.self>
+                                    <i class="fas fa-id-card me-2"></i> Datos del Conductor
+                                </button>
+                            </div>
+                            @if (session()->has('error_licencia'))
+                                <div class="alert alert-danger alert-dismissible show fade mt-2">
+                                    {{ session('error_licencia') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+                            <div id="conductor" class="accordion-collapse collapse" wire:ignore.self>
+                                <div class="accordion-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <input id="conductor_interno"
+                                                   wire:model.live="tipo_conductor"
+                                                   name="tipo_conductor"
+                                                   value="1"
+                                                   type="radio">
+                                            <label for="conductor_interno">Conductor Interno</label>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input id="conductor_externo"
+                                                   wire:model.live="tipo_conductor"
+                                                   name="tipo_conductor"
+                                                   value="2"
+                                                   type="radio">
+                                            <label for="conductor_externo">Conductor Externo</label>
+                                        </div>
+                                    </div>
+                                    <br>
+                                    <div class="row g-3">
+                                        @if($tipo_conductor == 1)
+                                            <div class="col-md-3">
+                                                <label class="form-label" for="id_conductor">Conductor</label>
+                                                <select wire:model.live="id_conductor"
+                                                        name="id_conductor"
+                                                        id="id_conductor"
+                                                        class="form-control"
+                                                        style="width: 99%">
+                                                    <option value="">Seleccionar...</option>
+                                                    @foreach($conductores as $c)
+                                                        @php
+                                                            $licencia = $this->vehiculo->listar_licencia_conducir_x_person($c->id_person);
+                                                            $str_licencia = '';
+                                                        @endphp
+                                                        @if(!empty($licencia))
+                                                            @foreach($licencia as $l)
+                                                                @php
+                                                                    $licencia_con_ = $l->documentacion_referencia;
+                                                                    $licencia_con = str_replace('-', '', $licencia_con_); // Elimina el '-'
+                                                                    $fecha_ven = $l->documentacion_fin ?? '';
+                                                                    $str_licencia .= $licencia_con. ' - ' .$fecha_ven. ' || ';
+                                                                @endphp
+                                                            @endforeach
+                                                            @php
+                                                                $conductor = $c->person_name. '  ' .$c->person_surname.' '.($c->person_surname2 ?? '');
+                                                            @endphp
+                                                            <option value="{{ $c->id_person }}">
+                                                                {{ $c->person_dni }} | {{ $conductor }} | {{ rtrim($str_licencia, ' || ') }}
+                                                            </option>
+                                                        @endif
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        @endif
+
+                                        @if($tipo_conductor == 2)
+                                            <div class="col-md-2">
+                                                <label for="tipo_documento_con" class="form-label">Tipo Documento</label>
+                                                <select class="form-control" wire:model="tipo_documento_con" id="tipo_documento_con" name="tipo_documento_con">
+                                                    <option value="">Seleccionar...</option>
+                                                    <option value="1">DNI</option>
+                                                    <option value="4">CARNET DE EXTRANJERIA</option>
+                                                    <option value="7">PASAPORTE</option>
+                                                    <option value="A">CEDULA</option>
+                                                    <option value="0">NO DOMICIALIADO</option>
+                                                </select>
+                                            </div>
+                                        @endif
+
+                                        @if($tipo_conductor == 2)
+                                            <div class="col-md-2">
+                                                <label for="numero_doc_con" class="form-label">N° Documento</label>
+                                                <input type="text"
+                                                       class="form-control"
+                                                       wire:model="numero_doc_con"
+                                                       id="numero_doc_con"
+                                                       name="numero_doc_con"
+                                                       onkeyup="validar_numeros(this.id)">
+                                            </div>
+                                            @error('numero_doc_con')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        @endif
+
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="nombre_con">Nombre del Conductor</label>
+                                            <textarea name="nombre_con"
+                                                      id="nombre_con"
+                                                      wire:model.live="nombre_con"
+                                                      rows="1"
+                                                      onkeyup="mayuscula(this.id)"
+                                                      style="font-size: 10pt;"
+                                                      class="form-control" {{ $tipo_conductor == 1 ? 'readonly' : '' }}>
+                                            </textarea>
+                                            @error('nombre_con')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="apellido_con">Apellidos del Conductor</label>
+                                            <textarea name="apellido_con"
+                                                      id="apellido_con"
+                                                      wire:model.live="apellido_con"
+                                                      rows="1"
+                                                      onkeyup="mayuscula(this.id)"
+                                                      style="font-size: 10pt;"
+                                                      class="form-control" {{ $tipo_conductor == 1 ? 'readonly' : '' }}>
+                                            </textarea>
+                                            @error('apellido_con')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        @if($tipo_conductor == 1)
+                                            <div class="col-md-3">
+                                                <label class="form-label" for="licencia_con">Licencia de conducir</label>
+                                                <select class="form-control"
+                                                        name="licencia_con"
+                                                        id="licencia_con"
+                                                        wire:model.live="licencia_con">
+                                                    <option value="">Seleccionar...</option>
+                                                    @foreach($licencias_disponibles as $lic)
+                                                        <option value="{{ str_replace('-', '', $lic['numero']) }}">
+                                                            {{ $lic['texto'] }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        @endif
+
+                                        @if($tipo_conductor == 2)
+                                            <div class="col-md-2">
+                                                <label class="form-label" for="licencia_con_externo">Licencia de conducir</label>
+                                                <input type="text"
+                                                       id="licencia_con_externo"
+                                                       name="licencia_con_externo"
+                                                       wire:model="licencia_con_externo"
+                                                       class="form-control"
+                                                       placeholder="Sin guiones ni espacios">
+                                                @error('licencia_con_externo')
+                                                <span class="text-danger">{{ $message }}</span>
+                                                @enderror
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Destinatario -->
+                    @if($mostrar_transportista)
+                        <div class="accordion-item border-top">
+                            <div class="accordion-header bg-light-primary">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#destinatario" wire:ignore.self>
+                                    <i class="fas fa-user-tag me-2"></i> Datos del Destinatario
+                                </button>
+                            </div>
+                            @if (session()->has('error_dest'))
+                                <div class="alert alert-danger alert-dismissible show fade mt-2">
+                                    {{ session('error_dest') }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+                            <div id="destinatario" class="accordion-collapse collapse" wire:ignore.self>
+                                <div class="accordion-body">
+                                    <div class="row g-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label for="tipo_documento_dest" class="form-label">Tipo Documento</label>
+                                            <select class="form-control"
+                                                    wire:model="tipo_documento_dest"
+                                                    id="tipo_documento_dest"
+                                                    name="tipo_documento_dest">
+                                                @foreach($tipo_documento as $td)
+                                                    <option value="{{$td->id_tipo_documento}}">{{$td->tipo_documento_identidad}}</option>
+                                                @endforeach
+                                            </select>
+                                            @error('tipo_documento_dest')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label for="numero_doc_dest" class="form-label">N° Documento</label>
+                                            <input type="text" class="form-control"
+                                                   wire:model="numero_doc_dest"
+                                                   wire:change="consultarDocumentoDestinatario"
+                                                   wire:blur="validarNumeroDocDest"
+                                                   id="numero_doc_dest"
+                                                   name="numero_doc_dest"
+                                                   onkeyup="validar_numeros(this.id)">
+
+                                            <div wire:loading wire:target="consultarDocumentoDestinatario">
+                                                Consultando información...
+                                            </div>
+
+{{--                                            @if($messageConsultaDest)--}}
+{{--                                                <span class="text-{{ $messageConsultaDest['type'] }} d-block">--}}
+{{--                                                    {{ $messageConsultaDest['mensaje'] }}--}}
+{{--                                                </span>--}}
+{{--                                            @endif--}}
+                                            @error('numero_doc_dest')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="nombre_dest">Nombre del Destinatario</label>
+                                            <textarea readonly
+                                                      name="nombre_dest"
+                                                      id="nombre_dest"
+                                                      wire:model="nombre_dest"
+                                                      rows="1"
+                                                      onkeyup="mayuscula(this.id)"
+                                                      class="form-control">
+                                            </textarea>
+                                            @error('nombre_dest')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="direccion_dest">Dirección del Destinatario</label>
+                                            <textarea name="direccion_dest"
+                                                      id="direccion_dest"
+                                                      wire:model="direccion_dest"
+                                                      rows="1"
+                                                      onkeyup="mayuscula(this.id)"
+                                                      class="form-control">
+                                            </textarea>
+                                            @error('direccion_dest')
+                                            <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Ubicaciones -->
+                    <div class="accordion-item border-top">
+                        <div class="accordion-header bg-light-primary">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ubicaciones" wire:ignore.self>
+                                <i class="fas fa-map-marker-alt me-2"></i> Ubicaciones
+                            </button>
+                        </div>
+                        <div id="ubicaciones" class="accordion-collapse collapse" wire:ignore.self>
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <!-- Punto de Partida -->
+                                    <div class="col-md-6">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary text-white">
+                                                Punto de Partida
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Ubigeo</label>
+                                                    <select name="ubigeo_partida"
+                                                            id="ubigeo_partida"
+                                                            wire:model="ubigeo_partida"
+                                                            class="form-select">
+                                                        @foreach($ubigeo as $u)
+                                                            <option value="{{ $u->ubigeo_cod }}"
+                                                                {{ $u->ubigeo_distrito === 'IQUITOS' ? 'selected' : '' }}>
+                                                                {{ $u->ubigeo_distrito }} | {{ $u->ubigeo_provincia }} | {{ $u->ubigeo_departamento }} | {{ $u->ubigeo_cod }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Dirección</label>
+                                                    <textarea name="direccion_partida"
+                                                              id="direccion_partida"
+                                                              wire:model.live="direccion_partida"
+                                                              maxlength="150"
+                                                              rows="1"
+                                                              onkeyup="mayuscula(this.id)"
+                                                              class="form-control">
+                                                    </textarea>
+                                                    @error('direccion_partida')
+                                                    <span class="text-danger">{{ $message }}</span>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Punto de Llegada -->
+                                    <div class="col-md-6">
+                                        <div class="card border-primary">
+                                            <div class="card-header bg-primary text-white">
+                                                Punto de Llegada
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="select_llegada" class="form-label">Opción de llegada</label>
+                                                    <select name="select_llegada"
+                                                            id="select_llegada"
+                                                            wire:model.live="select_llegada"
+                                                            class="form-select">
+                                                        <option value="">Seleccionar...</option>
+{{--                                                        <option value="1">LOCAL TUPAC AMARU II</option>--}}
+{{--                                                        <option value="2">LOCAL 28 DE JULIO</option>--}}
+{{--                                                        <option value="3">OTRO...</option>--}}
+                                                        @if($cliente_ruc === '20612105660')
+                                                            @foreach($sedes as $sede)
+                                                                <option value="{{ $sede->id_sedes }}">
+                                                                    {{ $sede->sedes_nombre }}
+                                                                </option>
+                                                            @endforeach
+{{--                                                            <option value="otro">OTRO...</option>--}}
+                                                        @else
+                                                            {{-- para ualquier otro cliente --}}
+                                                            <option value="otro">OTRO...</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-lg-6">
+                                                        <div class="mb-3">
+                                                            <label for="ubigeo_llegada" class="form-label">Ubigeo</label>
+                                                            <select name="ubigeo_llegada"
+                                                                    id="ubigeo_llegada"
+                                                                    wire:model="ubigeo_llegada"
+                                                                    class="form-select"
+                                                                @if($select_llegada != 'otro') disabled @endif>
+                                                                <option value="">Seleccionar...</option>
+                                                                @foreach($ubigeo as $u)
+                                                                    <option value="{{ $u->ubigeo_cod }}">
+                                                                        {{ $u->ubigeo_distrito }} | {{ $u->ubigeo_provincia }} | {{ $u->ubigeo_departamento }} | {{ $u->ubigeo_cod }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                            @error('ubigeo_llegada')
+                                                            <span class="text-danger">{{ $message }}</span>
+                                                            @enderror
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-lg-6">
+                                                        <div class="mb-3">
+                                                            <label for="direccion_llegada" class="form-label">Dirección</label>
+                                                            <textarea name="direccion_llegada"
+                                                                      id="direccion_llegada"
+                                                                      wire:model="direccion_llegada"
+                                                                      maxlength="150"
+                                                                      rows="1"
+                                                                      onkeyup="mayuscula(this.id)"
+                                                                      class="form-control"
+                                                                      @if($select_llegada != 'otro') readonly @endif>
+                                                            </textarea>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observacion -->
+                    <div class="accordion-item border-top border-bottom">
+                        <div class="accordion-header bg-light-primary">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#observacion_panel" wire:ignore.self>
+                                <i class="fas fa-list-check me-2"></i> Observación
+                            </button>
+                        </div>
+                        <div id="observacion_panel" class="accordion-collapse collapse" wire:ignore.self>
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <label for="observacion" class="form-label">Observaciones</label>
+                                        <textarea class="form-control" name="observacion" id="observacion" wire:model="observacion" maxlength="1000" rows="1"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+{{--                    <div class="accordion-item border-top border-bottom">--}}
+{{--                        <div class="accordion-header bg-light-primary">--}}
+{{--                            <button type="button" wire:click="togglePanel('observacion')" class="accordion-button @if($openPanel !== 'observacion') collapsed @endif">--}}
+{{--                                <i class="fas fa-list-check me-2"></i> Observación--}}
+{{--                            </button>--}}
+{{--                        </div>--}}
+{{--                        <div class="observacion-collapse @if($openPanel === 'observacion') open @endif">--}}
+{{--                            <div class="accordion-body">--}}
+{{--                                <div class="row g-3">--}}
+{{--                                    <div class="col-md-12">--}}
+{{--                                        <label for="observacion" class="form-label">Observaciones</label>--}}
+{{--                                        <textarea class="form-control" name="observacion" id="observacion" wire:model="observacion" maxlength="1000" rows="1"></textarea>--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                </div>--}}
+
+                    @if (session()->has('error_guia'))
+                        <div class="alert alert-danger alert-dismissible show fade mt-2">
+                            {{ session('error_guia') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    <!-- Boton Final -->
+                    <div class="d-flex justify-content-end gap-3 mt-3">
+{{--                        <button id="btn_guardar_guia" wire:click="guardarGuia" class="btn btn-primary"><i class="fa fa-check"></i> Generar</button>--}}
+
+                        <button wire:click="guardarGuia" wire:loading.attr="disabled" wire:target="guardarGuia" class="btn btn-primary"><i class="fas fa-check"></i>
+                            <span wire:loading.remove wire:target="guardarGuia">Generar</span>
+                            <span wire:loading wire:target="guardarGuia">
+                                <i class="fas fa-spinner fa-spin"></i> Guardando...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+@script
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('id_cliente_referencia');
+        const listaClientes = document.getElementById('lista_clientes_referenciar');
+
+        // Función para mostrar u ocultar la lista
+        function toggleList(display) {
+            listaClientes.style.display = display ? 'block' : 'none';
+        }
+
+        // Mostrar la lista cuando el input recibe el foco
+        input.addEventListener('focus', function() {
+            toggleList(true);  // Mostrar la lista cuando el input recibe foco
+        });
+
+        // Ocultar la lista cuando el input pierde el foco
+        input.addEventListener('blur', function() {
+            // Usamos un pequeño retraso para permitir que el evento de clic en la lista se procese primero
+            setTimeout(() => {
+                toggleList(false);  // Ocultar la lista cuando el input pierde el foco
+            }, 200); // 200ms de retraso
+        });
+
+        // Ocultar la lista cuando se selecciona un elemento de la lista
+        listaClientes.addEventListener('click', function(event) {
+            if (event.target.classList.contains('cliente-sugerido')) {
+                toggleList(false);  // Ocultar la lista después de seleccionar un cliente
+            }
+        });
+    });
+    $wire.on('hideModal', () => {
+        $('#modalAgregarCliente').modal('hide');
+    });
+</script>
+@endscript

@@ -1,0 +1,776 @@
+public function crear_xml_guia_enviar_sunat(){
+
+        try {
+            if (!Gate::allows('crear_xml_guia_enviar_sunat')) {
+                session()->flash('modal_error_enviar_comprobante', 'No tiene permisos para enviar el comprobante.');
+                return;
+            }
+
+            $id = $this->id_guia_envio_sunat;
+            $guia = $this->guiaremision->listar_guia_remision_x_id($id);
+            if ($guia){
+                $detalle_guia = $this->guiaremision->listar_detalle_guia_para_xml($id);
+                //SE LLENA EN CASO LA GUIA ESTA RELACIONADO A UNA VENTA
+                $venta = $this->venta->listar_soloventa_x_id($guia->id_venta);
+                $empresa = $this->empresas->listar_empresa_x_id($guia->id_empresa);
+                $nombre = $empresa->empresa_ruc.'-'.$guia->guia_tipo.'-'.$guia->guia_serie.'-'.$guia->guia_correlativo;
+                $ruta = "ApiFacturacion/xml/";
+                if(!empty($empresa->empresa_gre_id)){
+                    //SI HAY GRE_ID si se puede enviar las guias a sunat
+                    if($guia->guia_tipo == '09' || $guia->guia_tipo == '31'){
+                        GeneradorXML::CrearXmlGuiaRemision($ruta.$nombre, $empresa, $guia, $detalle_guia, $venta);
+                    }
+                    //SE PROCEDE A FIRMAR Y ENVIAR EL XML CREADO
+                    $result = apiFacturacion::EnviarGuiaRemision_nuevo($empresa,$nombre,"ApiFacturacion/","ApiFacturacion/xml/","ApiFacturacion/cdr/", $guia);
+                    //FIN ENVIO GRE
+                    $message = $result['mensaje'];
+                    if($result['result'] == 1){
+                        $date = date('Y-m-d H:i:s');
+                        DB::table('guia_remision')->where('id_guia','=',$id)->update(['guia_estado_sunat'=>1,'guia_fecha_envio'=>$date]);
+                        //$result = $this->ventas->guardar_estado_de_envio_guia($id_guia, '1');
+
+                        session()->flash('success', 'Comprobante emitido correctamente.');
+                        $this->dispatch('cerrar_modal');
+                        return;
+                    }else{
+                        session()->flash('modal_error_enviar_comprobante', $message);
+                        return;
+                    }
+                }else{
+                    session()->flash('modal_error_enviar_comprobante',"Esta empresa no está autorizada a enviar las GRE");
+                    //session()->flash('error', "Esta empresa no está autorizada a enviar las GRE");
+                    return;
+                }
+            }
+
+        }catch(\Exception $e){
+            //DB::rollBack();
+            $this->logs->insertarLog($e);
+            session()->flash('modal_error_enviar_comprobante', 'Ocurrio un error. Intente de nuevo');
+        }
+    }
+
+
+
+
+
+public function listar_guia_remision_x_id($id){
+        try{
+            $result = DB::table('guia_remision as gr')
+                ->join('clientes as c', 'gr.id_cliente', '=', 'c.id_cliente')
+                ->join('tipo_documento as td', 'c.id_tipo_documento', '=', 'td.id_tipo_documento')
+                ->where('gr.id_guia', $id)
+                ->first();
+        }catch (\Exception $e){
+            $this->logs->insertarLog($e);
+            $result = [];
+        }
+        return $result;
+    }
+
+
+
+
+
+public function listar_detalle_guia_para_xml($id){
+        try{
+            $result = DB::table('guia_remision_detalle')
+                ->where('id_guia', $id)
+                ->get();
+        }catch (\Exception $e){
+            $this->logs->insertarLog($e);
+            $result = [];
+        }
+        return $result;
+    }
+
+
+
+
+public  function listar_soloventa_x_id($ID){
+        $datos  = DB::table('ventas as v')->select('*')
+            ->join('sedes as s', 's.id_sedes', '=', 'v.id_sedes')
+            ->join('clientes as c', 'v.id_cliente', '=', 'c.id_cliente')
+            ->join('monedas as mo', 'v.id_moneda', '=', 'mo.id_moneda')
+            ->join('users as u', 'v.id_users', '=', 'u.id_users')
+            ->where('v.id_venta','=', $ID)
+            ->first();
+        return $datos;
+    }
+
+
+
+
+
+public function listar_empresa_x_id($id){
+        try {
+            $result = DB::table('empresas as e')
+                ->join('ubigeos as u','e.id_ubigeo','=','u.id_ubigeo')
+                ->where('e.id_empresa','=',$id)
+                ->first();
+
+        }catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            $result = [];
+        }
+        return $result;
+    }
+
+
+
+
+public static function CrearXmlGuiaRemision($nombrexml, $emisor, $guia, $detalle_guia, $venta)
+    {
+        $doc = new \DOMDocument();
+        $doc->formatOutput = FALSE;
+        $doc->preserveWhiteSpace = TRUE;
+        $doc->encoding = 'utf-8';
+        $exis_relacion = true;
+        //EN CASO LA GUIA ES DE UNA FACTURA O BOLETA ENTRA ACÁ
+        if(!empty($guia->id_venta)){
+            $venta_s_c = $venta->venta_serie.'-'.$venta->venta_correlativo;
+            $tipo = '';
+            $venta_tipo = '';
+            if($venta->venta_tipo == '01'){
+                $tipo = 'FACTURA';
+                $venta_tipo = '01';
+            }else if($venta->venta_tipo == '03'){
+                $tipo = 'BOLETA';
+                $venta_tipo = '03';
+            }
+        }else{
+            $venta_s_c = '';
+            $tipo = '';
+            $venta_tipo = '';
+            $exis_relacion = false;
+        }
+        $observacion = '-';
+        if(!empty($guia->guia_observacion)){
+            $observacion = $guia->guia_observacion;
+        }
+        $tipo_guia = $guia->guia_tipo;
+
+        $tipo_destinatario = $guia->guia_tipo_doc_desti;
+        $numero_destinatario = $guia->guia_num_doc_desti;
+        $denominacion_destinatario = $guia->guia_denominacion_desti;
+        if($tipo_guia=="09"){
+            $tipo_destinatario = "6";
+            $numero_destinatario = $emisor->empresa_ruc;
+            $denominacion_destinatario = $emisor->empresa_razon_social;
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>
+                <DespatchAdvice xmlns="urn:oasis:names:specification:ubl:schema:xsd:DespatchAdvice-2"
+                xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+                xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+                xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+                xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">
+                 <ext:UBLExtensions>
+                    <ext:UBLExtension>
+                       <ext:ExtensionContent />
+                    </ext:UBLExtension>
+                 </ext:UBLExtensions>
+                 <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+                 <cbc:CustomizationID>2.0</cbc:CustomizationID>
+                 <cbc:ID>'.$guia->guia_serie.'-'.$guia->guia_correlativo.'</cbc:ID>
+                 <cbc:IssueDate>'.date('Y-m-d', strtotime($guia->fecha_creacion)).'</cbc:IssueDate>
+                 <cbc:IssueTime>'.date('H:i:s', strtotime($guia->fecha_creacion)).'</cbc:IssueTime>
+                 <cbc:DespatchAdviceTypeCode>'.$guia->guia_tipo.'</cbc:DespatchAdviceTypeCode>
+                 <cbc:Note>'.$observacion.'</cbc:Note>';
+        //guía de remisión dada de baja
+        $valor = false;
+        if($valor){
+            $xml .='<cac:OrderReference>
+                 <cbc:ID>EG01-1</cbc:ID>
+                 <cbc:OrderTypeCode name=”Guía de Remisión”>09</cbc:OrderTypeCode>
+                </cac: OrderReference>';
+        }
+
+        //Documento Adicional Relacionado
+        if($exis_relacion){
+            $xml .='<cac:AdditionalDocumentReference>
+                     <cbc:ID>'.$venta_s_c.'</cbc:ID>
+                     <cbc:DocumentTypeCode>'.$venta_tipo.'</cbc:DocumentTypeCode>
+                     <cbc:DocumentType>'.$tipo.'</cbc:DocumentType>
+                     <cac:IssuerParty>
+                        <cac:PartyIdentification>
+                        <cbc:ID schemeID="6" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">'.$emisor->empresa_ruc.'</cbc:ID>
+                        </cac:PartyIdentification>
+                      </cac:IssuerParty>
+                </cac:AdditionalDocumentReference>';
+        }
+
+        $xml .='<cac:Signature>
+                    <cbc:ID>'.$emisor->empresa_ruc.'</cbc:ID>
+                    <cac:SignatoryParty>
+                       <cac:PartyIdentification>
+                          <cbc:ID>'.$emisor->empresa_ruc.'</cbc:ID>
+                       </cac:PartyIdentification>
+                       <cac:PartyName>
+                          <cbc:Name>'.$emisor->empresa_razon_social.'</cbc:Name>
+                       </cac:PartyName>
+                    </cac:SignatoryParty>
+                    <cac:DigitalSignatureAttachment>
+                       <cac:ExternalReference>
+                          <cbc:URI>'.$emisor->empresa_ruc.'</cbc:URI>
+                       </cac:ExternalReference>
+                    </cac:DigitalSignatureAttachment>
+                 </cac:Signature>';
+        //Datos del Remitente
+        $xml .= '<cac:DespatchSupplierParty>
+                        <cbc:CustomerAssignedAccountID schemeID="6">'.$emisor->empresa_ruc.'</cbc:CustomerAssignedAccountID>
+                     <cac:Party>
+                     <cac:PartyIdentification>
+                        <cbc:ID schemeID="6" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">'.$emisor->empresa_ruc.'</cbc:ID>
+                      </cac:PartyIdentification>
+                      <cac:PartyLegalEntity>
+                         <cbc:RegistrationName>'.$emisor->empresa_nombre_comercial.'</cbc:RegistrationName>
+                      </cac:PartyLegalEntity>
+                     </cac:Party>
+                 </cac:DespatchSupplierParty>';
+
+        //Datos del destinatario
+        $xml .= '<cac:DeliveryCustomerParty>
+                     <cac:Party>
+                     <cac:PartyIdentification>
+                        <cbc:ID schemeID="'.$tipo_destinatario.'" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">'.$numero_destinatario.'</cbc:ID>
+                      </cac:PartyIdentification>
+                      <cac:PartyLegalEntity>
+                       <cbc:RegistrationName><![CDATA['.$denominacion_destinatario.']]></cbc:RegistrationName>
+                      </cac:PartyLegalEntity>
+                     </cac:Party>
+                  </cac:DeliveryCustomerParty>';
+        //Datos del establecimiento del tercero
+        if($valor){
+            $xml .= '<cac:SellerSupplierParty>
+                     <cbc:CustomerAssignedAccountID schemeID=”6”>10209865209</cbc:CustomerAssignedAccountID>
+                     <cac:Party>
+                      <cac:PartyLegalEntity>
+                       <cbc:RegistrationName><![CDATA[RODRIGUEZ ROQUE AQUILES RUFO]]>
+                       </cbc:RegistrationName>
+                      </cac:PartyLegalEntity>
+                     </cac:Party>
+                  </cac:SellerSupplierParty>';
+        }
+        //Datos del envío
+        switch ($guia->guia_motivo){
+            case '01' : $motivo = 'VENTA';  break;
+            case '02' : $motivo = 'COMPRA'; break;
+            case '03' : $motivo = 'VENTA CON ENTREGA A TERCEROS'; break;
+            case '04' : $motivo = 'TRASLADO ENTRE ESTABLECIMIENTOS'; break;
+            case '05' : $motivo = 'CONSIGNACIÓN'; break;
+            case '06' : $motivo = 'DEVOLUCIÓN'; break;
+            case '07' : $motivo = 'RECOJO DE BIENES TRANSFORMADOS'; break;
+            case '08' : $motivo = 'IMPORTACION'; break;
+            case '09' : $motivo = 'EXPORTACION'; break;
+            case '13' : $motivo = 'OTROS'; break;
+            case '14' : $motivo = 'VENTA SUJETA A CONFIRMACION DEL COMPRADOR'; break;
+            case '17' : $motivo = 'TRASLADO DE BIENES PARA TRANSFORMACIÓN'; break;
+            case '18' : $motivo = 'TRASLADO EMISOR ITINERANTE CP'; break;
+            default : $motivo = '-';
+        }
+        // AGREGAR SI ES NECESARIO MAS ADELANTE <cbc:SplitConsignmentIndicator>01</cbc:SplitConsignmentIndicator> DESPUES DE MOTIVO
+        /*if(empty($guia->guia_peso_bruto)){
+            $p_bulto = 10.000;
+        }else{
+            $p_bulto = $guia->guia_peso_bruto;
+        }
+        if(empty($guia->guia_unidad_medida)){
+            $guia_unidad_medida = 'KGM';
+        }else{
+            $guia_unidad_medida = $guia->guia_unidad_medida;
+        }*/
+        $p_bulto = $guia->guia_peso_bruto;
+        $guia_unidad_medida = $guia->guia_unidad_medida;
+        if(empty($guia->guia_n_bulto)){
+            $n_bulto = 1;
+        }else{
+            $n_bulto = $guia->guia_n_bulto;
+        }
+        $xml .='<cac:Shipment>
+                     <cbc:ID>SUNAT_Envio</cbc:ID>';
+
+        //SI ES REMITENTE SE VA EL MOTIVO DEL TRASLADO
+        if($tipo_guia=="09"){
+            $xml .= '<cbc:HandlingCode>'.$guia->guia_motivo.'</cbc:HandlingCode>
+                     <cbc:HandlingInstructions><![CDATA['.$motivo.']]></cbc:HandlingInstructions>';
+        }
+        //EL PESO DEL BULTO VA SI O SI
+        $xml .= '<cbc:GrossWeightMeasure unitCode="'.$guia_unidad_medida.'">'.$p_bulto.'</cbc:GrossWeightMeasure>
+                     <cbc:TotalTransportHandlingUnitQuantity>'.$n_bulto.'</cbc:TotalTransportHandlingUnitQuantity>';
+
+        $xml .=   '<cac:ShipmentStage>
+                        <cbc:ID>1</cbc:ID>';
+        //TIPO DE TRANSPORTE SI ES PUBLICO O PRIVADO
+        if($tipo_guia=="09"){
+            $xml .= '<cbc:TransportModeCode>'.$guia->guia_tipo_trans.'</cbc:TransportModeCode>';
+        }
+        $xml .=   '<cac:TransitPeriod>
+                            <cbc:StartDate>'.date('Y-m-d', strtotime($guia->guia_fecha_traslado)).'</cbc:StartDate>
+                        </cac:TransitPeriod>';
+
+        if($guia->guia_tipo_trans == '01'){
+            //PUBLICO
+            $xml .= '<cac:CarrierParty>
+                         <cac:PartyIdentification>
+                            <cbc:ID schemeID="'.$guia->guia_tipo_doc_trans.'">'.$guia->guia_num_doc_trans.'</cbc:ID>
+                         </cac:PartyIdentification>
+                         <cac:PartyLegalEntity>
+                            <cbc:RegistrationName>'.$guia->guia_denominacion.'</cbc:RegistrationName>
+                          </cac:PartyLegalEntity>
+                    </cac:CarrierParty>';
+        }
+        if($guia->guia_tipo_trans == '02' || $tipo_guia=="31"){
+            //PRIVADO
+            $xml .= '<cac:TransportMeans>
+                            <cac:RoadTransport>
+                                <cbc:LicensePlateID>'.$guia->guia_placa.'</cbc:LicensePlateID>
+                            </cac:RoadTransport>
+                        </cac:TransportMeans>';
+            //datos del conductor
+            $nombre_con = $guia->guia_conductor_nombre;
+            $apellido_con = $guia->guia_conductor_apellidos;
+            $xml .= '
+                            <cac:DriverPerson>
+                                <cbc:ID schemeID="'.$guia->guia_conductor_documento_tipo.'">'.$guia->guia_conductor_numero.'</cbc:ID>
+                                <cbc:FirstName>'.$nombre_con.'</cbc:FirstName>
+                                <cbc:FamilyName>'.$apellido_con.'</cbc:FamilyName>
+                                <cbc:JobTitle>Principal</cbc:JobTitle>
+                                <cac:IdentityDocumentReference>
+                                <!-- LICENCIA DE CONDUCIR -->
+                                <cbc:ID>'.$guia->guia_licencia_conductor.'</cbc:ID>
+                                </cac:IdentityDocumentReference>
+                            </cac:DriverPerson>';
+        }
+        $guia_ubigeo_llega = $guia->guia_ubigeo_llega;
+        $guia_ubigeo_par = $guia->guia_ubigeo_part;
+        $xml .= '
+                    </cac:ShipmentStage>
+                    <cac:Delivery>
+                        <cac:DeliveryAddress>
+                            <cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">'.$guia_ubigeo_llega.'</cbc:ID>
+                            <cac:AddressLine>
+                                <cbc:Line><![CDATA['.$guia->guia_direccion_llega.']]></cbc:Line>
+                            </cac:AddressLine>
+                        </cac:DeliveryAddress>
+                        <cac:Despatch>
+                            <cac:DespatchAddress>
+                                <cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">'.$guia_ubigeo_par.'</cbc:ID>
+                                <cac:AddressLine>
+                                    <cbc:Line><![CDATA['.$guia->guia_direccion_part.']]></cbc:Line>
+                                </cac:AddressLine>
+                            </cac:DespatchAddress>';
+
+        if($tipo_guia=="31"){
+            //SOLO SI ES TRANSPORTISTA VA DATOS DEL REMITENTE, O SEA EL CLIENTE
+            $xml .= '        <cac:DespatchParty>
+                                <cac:PartyIdentification>
+                                    <cbc:ID schemeID="'.$guia->tipodocumento_codigo.'" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">'.$guia->cliente_numero_documento.'</cbc:ID>
+                                </cac:PartyIdentification>
+                                <cac:PartyLegalEntity>
+                                    <cbc:RegistrationName>'.$guia->cliente_razon_social.'</cbc:RegistrationName>
+                                </cac:PartyLegalEntity>
+                            </cac:DespatchParty>';
+        }
+
+        $xml .= '
+                        </cac:Despatch>
+                    </cac:Delivery>';
+
+        if($guia->guia_tipo_trans == '02'){
+            //Datos del contenedor (Motivo Importación)
+            $xml .=     '<cac:TransportHandlingUnit>
+                        <cac:TransportEquipment>
+                            <cbc:ID>'.$guia->guia_placa.'</cbc:ID>
+                        </cac:TransportEquipment>
+                    </cac:TransportHandlingUnit>';
+        }
+        if($valor){
+            $xml .= '
+                    <cac:FirstArrivalPortLocation>
+                        <cbc:ID>PAI</cbc:ID>
+                    </cac:FirstArrivalPortLocation>';
+        }
+        $xml .= '</cac:Shipment>';
+
+        //Bienes a trasportar
+        $item = 1;
+        foreach ($detalle_guia as $det){
+            $codigo_producto = 'C00'.$item;
+            $guia_remision_detalle_um = $det->guia_remision_detalle_um;
+            $xml .= '<cac:DespatchLine>
+                    <cbc:ID>'.$item.'</cbc:ID>
+                    <cbc:DeliveredQuantity unitCode="'.$guia_remision_detalle_um.'">'.$det->guia_remision_detalle_cantidad.'</cbc:DeliveredQuantity>
+                    <cac:OrderLineReference>
+                         <cbc:LineID>'.$item.'</cbc:LineID>
+                    </cac:OrderLineReference>
+                    <cac:Item>
+                      <cbc:Description>'.$det->guia_remision_detalle_descripcion.'</cbc:Description>
+                      <cac:SellersItemIdentification>
+                       <cbc:ID>'.$codigo_producto.'</cbc:ID>
+                      </cac:SellersItemIdentification>
+                     </cac:Item>
+                </cac:DespatchLine>';
+            $item++;
+        }
+
+        $xml.='</DespatchAdvice>';
+
+        $doc->loadXML($xml);
+        $doc->save($nombrexml.'.XML');
+    }
+
+
+
+
+
+
+public static function EnviarGuiaRemision_nuevo($emisor,$nombre, $rutacertificado, $ruta_archivo_xml, $ruta_archivo_cdr, $guia)
+    {
+        $modo = 0; //PRODUCCION 0 modo beta
+        //firma del documento
+        $objSignature = new Signature();
+        $objventa = new Ventas();
+        $result = 2;
+        $flg_firma = "0";
+        //$ruta_archivo_xml = "xml/";
+        $ruta = $ruta_archivo_xml.$nombre.'.XML';
+        $id_guia = $guia->id_guia;
+        $estado_sunat = "No llegó a ningún proceso de envío.";
+
+        $ruta_firma = $emisor->empresa_cert_pem;
+        $pass_firma = $emisor->empresa_key_pem;
+
+        $resp = Signature::signature_xml_new($flg_firma, $ruta, $ruta_firma, $pass_firma);
+        //print_r($resp); //hash
+
+        if($resp['respuesta'] == 'ok'){
+            $ruta_xml = $ruta_archivo_xml.$nombre.'.XML';
+            $result = DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_rutaXML'=>$ruta_xml]);
+
+            if ($result == 1 || $result == 0){
+                $result = 1;
+            }
+
+        }else{
+            $mensaje_dev = $resp['respuesta'];
+            Log::info($mensaje_dev);
+        }
+        //FIRMAR XML - FIN
+        if($result == 1){
+            //CONVERTIR A ZIP - INICIO
+            $zip = new \ZipArchive();
+
+            $nombrezip = $nombre.".zip";
+            $rutazip = $ruta_archivo_xml . $nombre.".zip";
+
+            if($zip->open($rutazip, \ZipArchive::CREATE) === TRUE)
+            {
+                $zip->addFile($ruta, $nombre . '.xml');
+                $zip->close();
+                $result = 1;
+            }else{
+                Log::info("Error al abrir zip");
+                $result = 2;
+            }
+
+            //CONVERTIR A ZIP - FIN
+            if($result == 1){
+
+                //INICIO - DATOS PARA DE IDENTIFICACION PARA ENVIAR GRE
+                $empresa_id = $emisor->empresa_gre_id;
+                //$empresa_id = "https://www.nubefact.com/api/v1/48239908-7ae7-4353-824d-071765d4";
+                $empresa_clave = $emisor->empresa_gre_clave;
+                if($modo==1){
+                    $api_token = "https://api-seguridad.sunat.gob.pe/v1/clientessol/$empresa_id/oauth2/token/";
+                }else{
+                    //PRUEBA
+                    $empresa_id = "test-85e5b0ae-255c-4891-a595-0b98c65c9854";
+                    $api_token = "https://gre-test.nubefact.com/v1/clientessol/$empresa_id/oauth2/token";
+                }
+                /*$body = array(
+                    "grant_type"          => "password",
+                    "scope"               => "https://api-cpe.sunat.gob.pe",
+                    "client_id"           => "$empresa_id",
+                    "client_secret"       => "$empresa_clave",
+                    "username"            => $emisor->empresa_ruc.$emisor->empresa_usuario,
+                    "password"            => "$emisor->empresa_clave"
+                );*/
+                if($modo==1){
+                    $body = 'grant_type=password&scope=https%3A%2F%2Fapi-cpe.sunat.gob.pe&client_id='.$empresa_id."&client_secret=".$empresa_clave."&username=".$emisor->empresa_ruc.$emisor->empresa_usuario."&password=".$emisor->empresa_clave;
+                }else{
+                    //PRUEBA
+                    $body = "grant_type=password&scope=https%3A%2F%2Fapi-cpe.sunat.gob.pe&client_id=test-85e5b0ae-255c-4891-a595-0b98c65c9854&client_secret=test-Hty%2FM6QshYvPgItX2P0%2BKw%3D%3D&username=".$emisor->empresa_ruc."MODDATOS&password=MODDATOS";
+                }
+                //INICIO - OBTENER EL TOKEN
+
+                $curl = curl_init();
+
+                curl_setopt_array($curl, array(
+                    CURLOPT_URL => $api_token,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_POSTFIELDS => $body,
+                    CURLOPT_HTTPHEADER => array(
+                        'Content-Type: application/x-www-form-urlencoded',
+                        'Cookie: TS019e7fc2=014dc399cbec395515f87110c4b4072f91cbfc5383d35b7025aaf4e6d64ebeba3d2162e14870599f2b76d143077f70dbcf62596481'
+                    ),
+                ));
+
+                $respuesta = curl_exec($curl);
+
+                curl_close($curl);
+                $leer_respuesta = json_decode($respuesta, true);
+                if(isset($leer_respuesta['cod'])){
+                    $codigo_error = $leer_respuesta['cod'];
+                    $mensaje_error = $leer_respuesta['msg'];
+                    $estado_sunat = $codigo_error.' // '.$mensaje_error;
+                    //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                    DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                    $result = 6; //erro al obtener el token
+                }else{
+                    if(isset($leer_respuesta['access_token'])){
+                        $access_token = $leer_respuesta['access_token'];
+                        $token_type = $leer_respuesta['token_type'];
+                        $expires_in = $leer_respuesta['expires_in'];
+                        $result = 1; //sigue el curso
+                        $autorizacion = "Bearer ".$access_token;
+                    }else{
+                        $estado_sunat = 'No hubo conexión';
+                        DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                        //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                        $result = 7; //no obtiene respuesta y termina la operacion
+                    }
+                }
+                //FIN - OBTENER EL TOKEN
+                //INICIO - DATOS PARA DE IDENTIFICACION PARA ENVIAR GRE
+                if($result == 1){
+
+                    $ruta_archivo = $rutazip;
+                    $nombre_archivo = $nombrezip;
+                    $contenido_del_zip = base64_encode(file_get_contents($ruta_archivo)); //codificar y convertir en texto el .zip
+                    $hash = hash('sha256', file_get_contents($ruta_archivo), false);
+                    if($modo==1){
+                        $url_guia = "https://api-cpe.sunat.gob.pe/v1/contribuyente/gem/comprobantes/".$nombre.'?numRucEmisor='.$emisor->empresa_ruc.'&codCpe='.$guia->guia_tipo.'&numSerie='.$guia->guia_serie.'&numCpe='.$guia->guia_correlativo;
+                    }else{
+                        //PRUEBA
+                        $url_guia = "https://gre-test.nubefact.com/v1/contribuyente/gem/comprobantes/".$nombre.'?numRucEmisor='.$emisor->empresa_ruc.'&codCpe='.$guia->guia_tipo.'&numSerie='.$guia->guia_serie.'&numCpe='.$guia->guia_correlativo;
+                    }
+
+                    //$body = array('archivo.nomArchivo='.$nombrezip.'&archivo.arcGreZip='.$contenido_del_zip);
+                    $body_guia = array(
+                        'archivo' => array(
+                            'nomArchivo'    => $nombrezip,
+                            'arcGreZip'     => $contenido_del_zip,
+                            'hashZip'       => $hash
+                        )
+                    );
+                    $json_guia = json_encode($body_guia);
+
+                    $curl = curl_init();
+
+                    curl_setopt_array($curl, array(
+                        CURLOPT_URL => $url_guia,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_ENCODING => '',
+                        CURLOPT_MAXREDIRS => 10,
+                        CURLOPT_TIMEOUT => 0,
+                        CURLOPT_FOLLOWLOCATION => true,
+                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                        CURLOPT_CUSTOMREQUEST => 'POST',
+                        CURLOPT_POSTFIELDS => $json_guia,
+                        CURLOPT_HTTPHEADER => array(
+                            'Authorization: '.$autorizacion,
+                            'Content-Type: application/json'
+                        ),
+                    ));
+
+                    $resp_envio = curl_exec($curl);
+
+                    curl_close($curl);
+                    $leer_respuesta = json_decode($resp_envio, true);
+                    $num_ticket = '';
+                    if(isset($leer_respuesta['cod'])){
+                        $codigo_error = $leer_respuesta['cod'];
+                        $mensaje_error = $leer_respuesta['msg'];
+                        $cod_err = $leer_respuesta['errors']['cod'];
+                        $cod_msg = $leer_respuesta['errors']['msg'];
+                        $estado_sunat = $codigo_error.' // '.$mensaje_error.'... CodError: '.$cod_err.'. Msg. '.$cod_msg;
+                        DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                        //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                        $result = 8; //erro al obtener el token
+                    }else{
+                        if(isset($leer_respuesta['numTicket'])){
+                            $num_ticket = $leer_respuesta['numTicket'];
+                            $fecRecepcion = $leer_respuesta['fecRecepcion'];
+                            // Convertir el valor a un formato que MySQL pueda aceptar
+                            $fecRecepcion = Carbon::parse($fecRecepcion)->toDateTimeString();
+                            //$objventa->guardar_repuesta_tiket_recepcion_guia($id_guia, $num_ticket, $fecRecepcion);
+                            DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_remision_numTicket'=>$num_ticket,'guia_remision_fecRecepcion'=>$fecRecepcion]);
+                            $result = 1;
+                        }else{
+                            //$estado_sunat = 'No hubo conexión';
+                            $estado_sunat = 'codigo: '.$leer_respuesta['status'].' - '.$leer_respuesta['message'];
+                            DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                            //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                            $result = 7; //no obtiene respuesta y termina la operacion
+                        }
+                    }
+                    sleep(5);
+                    curl_close($curl);
+                    if($result == 1){
+                        //INICIO - si se obtiene el ticket se tiene que consultar su validez
+                        $parametro = '?numTicket='.$num_ticket;
+                        if($modo==1){
+                            $url_consul = "https://api-cpe.sunat.gob.pe/v1/contribuyente/gem/comprobantes/envios/".$num_ticket.$parametro;
+                        }else{
+                            //PRUEBA
+                            $url_consul = "https://gre-test.nubefact.com/v1/contribuyente/gem/comprobantes/envios/".$num_ticket.$parametro;
+                        }
+
+                        //$body = array('archivo.nomArchivo='.$nombrezip.'&archivo.arcGreZip='.$contenido_del_zip);
+                        $body_consul = array();
+
+                        $curl = curl_init();
+
+                        curl_setopt_array($curl, array(
+                            CURLOPT_URL => $url_consul,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_ENCODING => '',
+                            CURLOPT_MAXREDIRS => 10,
+                            CURLOPT_TIMEOUT => 0,
+                            CURLOPT_FOLLOWLOCATION => true,
+                            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                            CURLOPT_CUSTOMREQUEST => 'GET',
+                            CURLOPT_POSTFIELDS => $body_consul,
+                            CURLOPT_HTTPHEADER => array(
+                                'Authorization: '.$autorizacion
+                            ),
+                        ));
+
+                        $resp_consul = curl_exec($curl);
+
+                        curl_close($curl);
+                        $leer_respuesta = json_decode($resp_consul, true);
+                        if(isset($leer_respuesta['cod'])){
+                            $codigo_error = $leer_respuesta['cod'];
+                            $mensaje_error = $leer_respuesta['msg'];
+                            $codigo_error_2 = $leer_respuesta['errors']['cod'];
+                            $mensaje_error_2 = $leer_respuesta['errors']['msg'];
+                            $estado_sunat = $codigo_error.' // '.$mensaje_error.'... CodError: '.$codigo_error_2.'. Msg. '.$mensaje_error_2;
+                            DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                            //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                            $result = 9; //Rechazo al enviar a sunat
+                        }else{
+                            if(isset($leer_respuesta['codRespuesta'])){
+                                $cod_respuesta = $leer_respuesta['codRespuesta'];
+                                $hay_cdr = $leer_respuesta['indCdrGenerado'];
+                                if($hay_cdr == 0){
+                                    //NO HAY CDR
+                                    if($cod_respuesta == 98){
+                                        $estado_sunat = 'Envio en proceso';
+                                        //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                                        DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                                        $result = 100;
+                                    }else if($cod_respuesta == 99){
+                                        //ENVIO CON ERROR
+                                        $numError = $leer_respuesta['error']['numError'];
+                                        $desError = $leer_respuesta['error']['desError'];
+                                        $estado_sunat = $numError.': '.$desError;
+                                        DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                                        //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                                        $result = 10;
+                                    }
+                                }else if($hay_cdr == 1){
+                                    //SI HAY CDR
+
+                                    //DECODIFICAR EL ARCHIVO CDR PARA QUE SEA GUARDADO EN ZIP Y LUEGO LEER SU DESCRIPCION SI ESTÁ ACEPTADO
+                                    $arcCdr = $leer_respuesta['arcCdr'];
+                                    $cdr = base64_decode($arcCdr); //decodificando el xml
+                                    file_put_contents($ruta_archivo_cdr . 'R-' . $nombrezip, $cdr ); //guardo el CDR zip en la carpeta cdr
+                                    $zip = new \ZipArchive();
+                                    if($zip->open($ruta_archivo_cdr. 'R-' . $nombrezip ) === true ) //rpta es identica existe el archivo
+                                    {
+                                        $zip->extractTo($ruta_archivo_cdr, 'R-' . $nombre . '.xml');
+                                        $zip->close();
+                                        $ruta_cdr = $ruta_archivo_cdr.'R-' . $nombre . '.XML';
+                                        $result = DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_rutaCDR'=>$ruta_cdr]);
+                                        //$result = $objventa->guardar_ruta_cdr_guia($id_guia,$ruta_cdr);
+                                        if($result == 1){
+                                            //INICIO - VERIFICAR RESPUESTA DEL CDR
+                                            if($cod_respuesta == 0){
+                                                //ENVIO OK
+                                                $xml_cdr = simplexml_load_file($ruta_cdr);
+                                                $xml_cdr->registerXPathNamespace('c', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+
+                                                $DocumentResponse = array();
+
+                                                $ReferenceID    = $xml_cdr->xpath('///c:ReferenceID');
+                                                $ResponseCode   = $xml_cdr->xpath('///c:ResponseCode');
+                                                $Description    = $xml_cdr->xpath('///c:Description');
+                                                $DocumentDescription    = $xml_cdr->xpath('///c:DocumentDescription');
+                                                $Notes          = $xml_cdr->xpath('///c:Note');
+
+                                                $DocumentResponse['RefenceID']      = (string)$ReferenceID[0];
+                                                $DocumentResponse['ResponseCode']   = (string)$ResponseCode[0];
+                                                $DocumentResponse['Description']    = (string)$Description[0];
+                                                $DocumentResponse['DocumentDescription']    = (string)$DocumentDescription[0];
+
+                                                if(count($Notes) > 0){
+                                                    foreach ($Notes as $note){
+                                                        $DocumentResponse['Notes'][] = (string)$Notes[0];
+                                                    }
+                                                }
+                                                //FIN - VERIFICAR RESPUESTA DEL CDR
+
+                                                $estado_sunat = $DocumentResponse['Description'];
+                                                $link_pdf = $DocumentResponse['DocumentDescription'];
+                                                DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat,'guia_linkpdf_sunat'=>$link_pdf]);
+                                                //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                                                //$objventa->guardar_repuesta_guia_pdf($id_guia, $link_pdf);
+
+                                            }else if($cod_respuesta == 99){
+                                                //ENVIO CON ERROR
+                                                $numError = $leer_respuesta['error']['numError'];
+                                                $desError = $leer_respuesta['error']['desError'];
+                                                $estado_sunat = $numError.': '.$desError;
+                                                DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                                                //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                                                $result = 10;
+                                            }
+                                        }
+                                        //$estadofe = '1';
+                                        //echo 'Procesado correctamente, OK';
+                                    }
+                                }
+
+                            }else{
+                                $estado_sunat = 'No hubo conexión';
+                                DB::table('guia_remision')->where('id_guia','=',$id_guia)->update(['guia_respuesta_sunat'=>$estado_sunat]);
+                                //$objventa->guardar_repuesta_guia($id_guia, $estado_sunat);
+                                $result = 7; //no obtiene respuesta y termina la operacion
+                            }
+                        }
+
+                        //FIN - si se obtiene el ticket se tiene que consultar su validez
+                    }
+                }
+            }
+
+        }
+        $resultado = array(
+            "result" => $result,
+            "mensaje" => $estado_sunat
+        );
+        return $resultado;
+    }
+
+
+
+
+
