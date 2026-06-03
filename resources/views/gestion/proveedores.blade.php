@@ -14,7 +14,15 @@
                         <input type="hidden" name="estadoActionFuction" id="estadoActionFuction">
                         <input type="hidden" name="id_proveedores" id="id_proveedores">
                         <div class="row">
-                            <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            {{-- Tipo persona + Tipo documento --}}
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                                <label for="proveedores_tipo_persona" class="form-label">Tipo de Persona</label>
+                                <select name="proveedores_tipo_persona" id="proveedores_tipo_persona" class="form-select">
+                                    <option value="juridica">Persona Jurídica</option>
+                                    <option value="natural">Persona Natural</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
                                 <label for="id_tipo_documento" class="form-label">Tipo de Documento</label>
                                 <select name="id_tipo_documento" class="form-control" id="id_tipo_documento">
                                     <option value="">Seleccionar</option>
@@ -23,25 +31,65 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            {{-- Documento + Nombre --}}
+                            <div class="col-lg-5 col-md-5 col-sm-12 mb-2">
                                 <label for="proveedores_numero_documento" class="form-label">N° Documento</label>
-                                <input type="text" name="proveedores_numero_documento" onkeyup="validar_numeros(this.id)"  id="proveedores_numero_documento" class="form-control w-100 ">
+                                <input type="text" name="proveedores_numero_documento" onkeyup="validar_numeros(this.id)" id="proveedores_numero_documento" class="form-control">
                             </div>
-                            <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
-                                <label for="proveedores_nombre" class="form-label">Razón Social</label>
-                                <input type="text" name="proveedores_nombre" id="proveedores_nombre" class="form-control w-100 ">
+                            <div class="col-lg-7 col-md-7 col-sm-12 mb-2">
+                                <label for="proveedores_nombre" class="form-label">Razón Social / Nombre</label>
+                                <input type="text" name="proveedores_nombre" id="proveedores_nombre" class="form-control">
                             </div>
-                            <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            {{-- Sexo + Dirección --}}
+                            <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
+                                <label for="proveedores_sexo" class="form-label">Sexo</label>
+                                <select name="proveedores_sexo" id="proveedores_sexo" class="form-select">
+                                    <option value="">-- N/A --</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Femenino</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-9 col-md-9 col-sm-12 mb-2">
                                 <label for="proveedores_direccion" class="form-label">Dirección</label>
-                                <textarea name="proveedores_direccion" id="proveedores_direccion" class="form-control w-100 "  rows="4"></textarea>
+                                <textarea name="proveedores_direccion" id="proveedores_direccion" class="form-control" rows="2"></textarea>
                             </div>
-                            <div class="col-lg-6 col-md-12 col-sm-12 mb-2">
+                            {{-- Teléfono + Email --}}
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
                                 <label for="proveedores_telefono" class="form-label">Teléfono</label>
-                                <input type="text" name="proveedores_telefono" onkeyup="validar_numeros(this.id)" id="proveedores_telefono" class="form-control w-100 ">
+                                <input type="text" name="proveedores_telefono" onkeyup="validar_numeros(this.id)" id="proveedores_telefono" class="form-control">
                             </div>
-                            <div class="col-lg-6 col-md-12 col-sm-12 mb-2">
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
                                 <label for="proveedores_correo" class="form-label">Correo electrónico</label>
-                                <input type="text" name="proveedores_correo" id="proveedores_correo" class="form-control w-100">
+                                <input type="text" name="proveedores_correo" id="proveedores_correo" class="form-control">
+                            </div>
+                            {{-- Atención / Contacto --}}
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                                <label for="proveedores_nombre_contacto" class="form-label">Atención (Contacto)</label>
+                                <input type="text" name="proveedores_nombre_contacto" id="proveedores_nombre_contacto" class="form-control">
+                            </div>
+                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                                <label for="proveedores_cargo" class="form-label">Cargo</label>
+                                <input type="text" name="proveedores_cargo" id="proveedores_cargo" class="form-control">
+                            </div>
+                            {{-- Ubigeo --}}
+                            <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="text-muted">Ubigeo</small></div>
+                            <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                                <select id="prov_dept" class="form-select" onchange="ubigeo_cargar_provincias(this.value,'prov_prov','prov_dist')">
+                                    <option value="">Departamento</option>
+                                    @foreach($departamentos as $d)
+                                        <option value="{{$d->id}}">{{$d->name}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                                <select id="prov_prov" class="form-select" onchange="ubigeo_cargar_distritos(this.value,'prov_dist')">
+                                    <option value="">Provincia</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                                <select id="prov_dist" name="proveedores_ubigeo" class="form-select">
+                                    <option value="">Distrito</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -75,9 +123,10 @@
                                 <thead>
                                 <tr class="encabezado_tabla_color">
                                     <th>#</th>
+                                    <th>Tipo</th>
                                     <th>Documento</th>
                                     <th>Razón Social</th>
-                                    <th>Dirección</th>
+                                    <th>Contacto / Cargo</th>
                                     <th>Teléfono</th>
                                     <th>Correo</th>
                                     <th>Acción</th>
@@ -90,11 +139,12 @@
                                 @foreach($proveedores as $me)
                                     <tr>
                                         <td>{{$a}}</td>
+                                        <td><span class="badge {{$me->proveedores_tipo_persona == 'juridica' ? 'bg-primary' : 'bg-success'}}">{{ucfirst($me->proveedores_tipo_persona ?? 'juridica')}}</span></td>
                                         <td>{{$me->tipo_documento_identidad_abr}}: {{$me->proveedores_numero_documento}}</td>
                                         <td>{{$me->proveedores_nombre}}</td>
-                                        <td>{{$me->proveedores_direccion}}</td>
-                                        <td>{{$me->proveedores_telefono}}</td>
-                                        <td>{{$me->proveedores_correo}}</td>
+                                        <td>{{$me->proveedores_nombre_contacto ? $me->proveedores_nombre_contacto.($me->proveedores_cargo ? ' ('.$me->proveedores_cargo.')' : '') : '-'}}</td>
+                                        <td>{{$me->proveedores_telefono ?? '-'}}</td>
+                                        <td>{{$me->proveedores_correo ?? '-'}}</td>
                                         <td>
                                             <button class="btn btn-sm bg-primary text-white" data-bs-toggle="modal" data-bs-target="#modal_crear_proveedor" onclick="modificarProveedor({{$me->id_proveedores}})"><i class="  fa-solid fa-pencil"></i></button>
                                             <button class="btn btn-sm bg-danger text-white" id="btnEliminarProveedor_{{$me->id_proveedores}}"  onclick="preguntar('¿Está seguro que desea eliminar este proveedor?','eliminar_proveedor','Si','No',{{$me->id_proveedores}})"><i class="fa-solid fa-trash"></i></button>

@@ -55,6 +55,24 @@ class adminController extends Controller
                 ->whereDate('orden_compra_fecha','>=',$fechaInicioMes)
                 ->whereDate('orden_compra_fecha','<=',$fechaFinMes)->count();
 
+            $productos_stock_bajo = DB::table('productos')
+                ->where('pro_estado', 1)
+                ->where('stock_minimo', '>', 0)
+                ->whereRaw('pro_stock <= stock_minimo')
+                ->select('pro_nombre', 'pro_codigo', 'pro_stock', 'stock_minimo')
+                ->orderBy('pro_stock', 'asc')
+                ->get();
+
+            $lotes_por_vencer = DB::table('lotes as l')
+                ->join('productos as p', 'p.id_pro', '=', 'l.id_pro')
+                ->where('l.estado', 'disponible')
+                ->where('l.cantidad', '>', 0)
+                ->whereNotNull('l.fecha_vencimiento')
+                ->whereDate('l.fecha_vencimiento', '<=', Carbon::now()->addDays(30))
+                ->select('p.pro_nombre', 'p.pro_codigo', 'l.numero_lote', 'l.fecha_vencimiento', 'l.cantidad')
+                ->orderBy('l.fecha_vencimiento', 'asc')
+                ->get();
+
 
             $dias_espanol = [
                 'Monday' => 'Lun',
@@ -93,7 +111,7 @@ class adminController extends Controller
             foreach ($dias_30 as $s){
                 $suma_ventas_30dias[] = $s['conteo'];
             }
-            return view('admin/inicio', compact('opciones','suma_ventas_30dias','dia_30dias','apertura','clientes','compras_mes','ventas_mes','caja','nombreMes'));
+            return view('admin/inicio', compact('opciones','suma_ventas_30dias','dia_30dias','apertura','clientes','compras_mes','ventas_mes','caja','nombreMes','productos_stock_bajo','lotes_por_vencer'));
         }catch (\Exception $e){
             $this->log->insertarLog($e);
             echo "<script>

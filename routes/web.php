@@ -105,6 +105,8 @@ Route::prefix('Gestion')->middleware('auth')->group(function () {
 
     route::post('/listar_datos_proveedor',[GestionController::class ,'listar_datos_proveedor'])->name('Gestion.listar_datos_proveedor')->middleware('can:listar_datos_proveedor');
     route::post('/listarCliente',[GestionController::class ,'listarCliente'])->name('Gestion.listarCliente')->middleware('can:listarCliente');
+    route::get('/ubigeo/provincias',[GestionController::class ,'ubigeo_provincias'])->name('Gestion.ubigeo_provincias');
+    route::get('/ubigeo/distritos',[GestionController::class ,'ubigeo_distritos'])->name('Gestion.ubigeo_distritos');
 });
 
 
@@ -161,6 +163,7 @@ Route::prefix('Gestionventas')->middleware('auth')->group(function () {
     route::post('/buscar_movimientos_productos',[GestionventasController::class ,'buscar_movimientos_productos'])->name('Gestionventas.buscar_movimientos_productos')->middleware('can:buscar_movimientos_productos');
     route::post('/buscar_productos',[GestionventasController::class ,'buscar_productos'])->name('Gestionventas.buscar_productos')->middleware('can:buscar_productos');
     route::post('/consultar_serie',[GestionventasController::class ,'consultar_serie'])->name('Gestionventas.consultar_serie')->middleware('can:consultar_serie');
+    route::post('/buscar_series_producto',[GestionventasController::class ,'buscar_series_producto'])->name('Gestionventas.buscar_series_producto');
     route::post('/generar_venta',[GestionventasController::class ,'generar_venta'])->name('Gestionventas.generar_venta')->middleware('can:generar_venta');
 //    route::post('/historial_orden_compra',[LogisticaController::class ,'historial_orden_compra'])->name('logistica.historial_orden_compra')->middleware('can:historial_orden_compra');
 

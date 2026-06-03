@@ -26,14 +26,14 @@ By: Eder Alfredo
     <link rel="stylesheet" href="{{asset('fontawasone/css/all.css')}}">
     <link rel="stylesheet" href="{{asset('css/bootstrap-icons.css')}}">
     {{-- FIN DE ICONOS    --}}
-    <link rel="stylesheet" href="{{asset('css/admin_global.css')}}">
-    <link rel="stylesheet" href="{{asset('css/datatable.css')}}">
     <link rel="stylesheet" href="{{ asset('assets/vendor/fonts/boxicons.css')}}" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/css/core.css')}}" class="template-customizer-core-css" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/css/theme-default.css')}}" class="template-customizer-theme-css" />
     <link rel="stylesheet" href="{{ asset('assets/css/demo.css')}}" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css')}}" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css')}}" />
+    <link rel="stylesheet" href="{{asset('css/datatable.css')}}">
+    <link rel="stylesheet" href="{{asset('css/admin_global.css')}}?v=6">
     <script src="{{asset('js/bootstrap.bundle.min.js')}}"></script>
     <script src="{{ asset('assets/vendor/js/helpers.js')}}"></script>
     <script src="{{ asset('assets/js/config.js')}}"></script>

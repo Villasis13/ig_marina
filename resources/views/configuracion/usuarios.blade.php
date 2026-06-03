@@ -169,7 +169,7 @@
                                             <td>{{$me->persona_nombre}}</td>
                                             <td>{{$me->persona_apellido_paterno." ".$me->persona_apellido_materno}}</td>
                                             <td>
-                                                @if($a != 1)
+                                                @if($me->name != 'superadmin' || Auth::user()->hasRole('superadmin'))
                                                     <button class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#crear_usuario" onclick="editar_usuario({{$me->id_users}})"><i class=" btn_editar fa fa-pencil"></i></button>
                                                     @if($me->users_estado == 1)
                                                         <button class="btn btn-sm" id="btn_anular{{$me->id_users}}"  onclick="preguntar('¿Está seguro que desea deshabilitar este usuario?','desabilitar_usuario','Si','No',{{$me->id_users}})"><i class="btn_eliminar fa-solid fa-ban"></i></button>

@@ -13,83 +13,130 @@
                 <div class="modal-body">
                     <input type="hidden" name="estadoActionFuctionProductos" id="estadoActionFuctionProductos">
                     <input type="hidden" name="id_pro" id="id_pro">
+                    {{-- Datos del producto en JSON para cascade JS --}}
+                    <script>
+                        var _categorias_data = @json($cate);
+                    </script>
                     <div class="row">
-                        <div class="col-lg-12 col-md-12 col-sm-12 text-center mb-3">
-                            <small class="text-primary">Por favor, complete los campos obligatorios marcados con asterisco ().*</small>
+                        <div class="col-lg-12 col-md-12 col-sm-12 text-center mb-2">
+                            <small class="text-primary">Los campos marcados con (*) son obligatorios.</small>
                         </div>
-                        <div class="col-lg-8 col-md-8 col-sm-12 mb-2">
+
+                        {{-- IDENTIFICACIÓN --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Identificación</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-5 col-md-5 col-sm-12 mb-2">
                             <label for="pro_nombre" class="form-label">Nombre (*)</label>
-                            <input type="text" name="pro_nombre"  id="pro_nombre" class="form-control w-100 ">
+                            <input type="text" name="pro_nombre" id="pro_nombre" class="form-control">
                         </div>
                         <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
                             <label for="pro_codigo" class="form-label">Código (*)</label>
-                            <input type="text" name="pro_codigo"  id="pro_codigo" class="form-control w-100 ">
+                            <input type="text" name="pro_codigo" id="pro_codigo" class="form-control">
                         </div>
-                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
-                            <label for="pro_precio_uni" class="form-label">Precio Unitario (*)</label>
-                            <input type="text" name="pro_precio_uni"  id="pro_precio_uni" class="form-control w-100 ">
+                        <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
+                            <label for="pro_codigo_barra" class="form-label">Código de Barra</label>
+                            <input type="text" name="pro_codigo_barra" id="pro_codigo_barra" class="form-control" placeholder="EAN-13...">
                         </div>
-                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
-                            <label for="pro_precio_uni_ma" class="form-label">Precio Mayorista (*)</label>
-                            <input type="text" name="pro_precio_uni_ma"  id="pro_precio_uni_ma" class="form-control w-100 ">
+
+                        {{-- CLASIFICACIÓN --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Clasificación</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="id_fa_selector" class="form-label">Línea (*)</label>
+                            <select id="id_fa_selector" class="form-select" onchange="filtrarCategorias(this.value)">
+                                <option value="">Seleccionar línea</option>
+                                @foreach($familias as $fa)
+                                    <option value="{{$fa->id_fa}}">{{$fa->fa_nombre}}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="id_ca" class="form-label">Clase / Categoría (*)</label>
+                            <select name="id_ca" id="id_ca" class="form-select">
+                                <option value="">Seleccione línea primero</option>
+                                @foreach($cate as $c)
+                                    <option value="{{$c->id_ca}}" data-fa="{{$c->id_fa}}">{{$c->ca_nombre}}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
                             <label for="tipoAfectacion" class="form-label">Tipo de Afectación</label>
                             <select name="tipoAfectacion" id="tipoAfectacion" class="form-select">
-                                <option value="">Seleccionar..</option>
+                                <option value="">Seleccionar</option>
                                 @foreach($tipoAfectacion as $ti)
                                     <option value="{{$ti->id_tipo_afectacion}}">{{$ti->descripcion}}</option>
                                 @endforeach
                             </select>
                         </div>
-{{--                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">--}}
-{{--                            <label for="pro_medida" class="form-label">Porcentaje IGV (*) </label>--}}
-{{--                            <div class="row">--}}
-{{--                                <div class="col-lg-6">--}}
-{{--                                    <input type="radio" name="pro_porcen_igv" id="pro_porcen_igv_18" value="1.18" >--}}
-{{--                                    <label for="pro_porcen_igv_18">18%</label>--}}
-{{--                                </div>--}}
-{{--                                <div class="col-lg-6">--}}
-{{--                                    <input type="radio" name="pro_porcen_igv" id="pro_porcen_igv_10" value="1.10">--}}
-{{--                                    <label for="pro_porcen_igv_10">10%</label>--}}
-{{--                                </div>--}}
-{{--                            </div>--}}
-{{--                        </div>--}}
-                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
-                            <label for="id_ca" class="form-label">Categoría (*)</label>
-                            <select name="id_ca" id="id_ca" class="form-select">
-                                <option value="">Seleccionar</option>
-                                @foreach($cate as $c)
-                                    <option value="{{$c->id_ca}}">{{$c->ca_nombre}}</option>
-                                @endforeach
-                            </select>
-                        </div>
-{{--                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">--}}
-{{--                            <label for="pro_presentacion" class="form-label">Presentación</label>--}}
-{{--                            <input type="text" name="pro_presentacion"  id="pro_presentacion" class="form-control w-100 ">--}}
-{{--                        </div>--}}
-{{--                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">--}}
-{{--                            <label for="pro_medida" class="form-label">Medida</label>--}}
-{{--                            <input type="text" name="pro_medida"  id="pro_medida" class="form-control w-100 ">--}}
-{{--                        </div>--}}
-                        <div class="col-lg-6 col-md-6 col-sm-12 mt-3 mb-3 ">
-                            <label for="unidadMedida" class="form-label">Medida (*)</label>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="unidadMedida" class="form-label">Unidad de Medida (*)</label>
                             <select name="unidadMedida" id="unidadMedida" class="form-select">
                                 <option value="">Seleccionar</option>
                                 <option value="58">UNIDAD (BIENES)</option>
                                 <option value="59">UNIDAD (SERVICIOS)</option>
                             </select>
                         </div>
-                        <div class="col-lg-6 col-md-6 col-sm-12 mt-3 mb-3 d-flex align-items-center">
-                            <label for="impuesto_bolsa" class="w-50 form-label m-0">IMPUESTO A BOLSA</label>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="id_moneda" class="form-label">Moneda</label>
+                            <select name="id_moneda" id="id_moneda" class="form-select">
+                                @foreach($monedas as $m)
+                                    <option value="{{$m->id_moneda}}">{{$m->simbolo}} {{$m->moneda}} ({{$m->abrstandar}})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="pro_fecha_adquisicion" class="form-label">Fecha de Adquisición</label>
+                            <input type="date" name="pro_fecha_adquisicion" id="pro_fecha_adquisicion" class="form-control">
+                        </div>
+
+                        {{-- PRECIOS DE VENTA --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Precios de Venta</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                            <label for="pro_precio_uni" class="form-label">Precio Unitario (*) <small class="text-muted">(con IGV)</small></label>
+                            <input type="text" name="pro_precio_uni" id="pro_precio_uni" class="form-control" onkeyup="validar_numeros(this.id)">
+                        </div>
+                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2">
+                            <label for="pro_precio_uni_ma" class="form-label">Precio Mayorista (*) <small class="text-muted">(con IGV)</small></label>
+                            <input type="text" name="pro_precio_uni_ma" id="pro_precio_uni_ma" class="form-control" onkeyup="validar_numeros(this.id)">
+                        </div>
+
+                        {{-- PRECIOS DE COSTO --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Precios de Costo</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="pro_precio_costo" class="form-label">Precio Costo <small class="text-muted">(con IGV)</small></label>
+                            <input type="text" name="pro_precio_costo" id="pro_precio_costo" class="form-control" onkeyup="validar_numeros(this.id)" placeholder="0.00">
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="pro_valor_costo" class="form-label">Valor Costo <small class="text-muted">(sin IGV)</small></label>
+                            <input type="text" name="pro_valor_costo" id="pro_valor_costo" class="form-control" onkeyup="validar_numeros(this.id)" placeholder="0.00">
+                        </div>
+                        <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
+                            <label for="pro_costo_promedio" class="form-label">
+                                Costo Promedio Pond.
+                                <i class="fa-solid fa-circle-info text-primary" title="Calculado automáticamente al registrar compras"></i>
+                            </label>
+                            <input type="text" name="pro_costo_promedio" id="pro_costo_promedio" class="form-control bg-light" readonly placeholder="0.00">
+                        </div>
+
+                        {{-- CONTROL DE STOCK --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Control de Stock</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-4 col-md-6 col-sm-12 mb-2 d-flex align-items-center">
+                            <label for="stock_minimo" class="me-2 form-label m-0">Cantidad Mínima</label>
+                            <input type="number" min="0" class="form-control" id="stock_minimo" name="stock_minimo" value="0">
+                        </div>
+                        <div class="col-lg-4 col-md-6 col-sm-12 mb-2 d-flex align-items-center">
+                            <label for="stock_maximo" class="me-2 form-label m-0">Cantidad Máxima</label>
+                            <input type="number" min="0" class="form-control" id="stock_maximo" name="stock_maximo" value="0">
+                        </div>
+                        <div class="col-lg-4 col-md-6 col-sm-12 mb-2 d-flex align-items-center">
+                            <label for="impuesto_bolsa" class="me-2 form-label m-0">Impuesto a Bolsa</label>
                             <label class="check">
-                                <input type="checkbox" id="impuesto_bolsa"  name="impuesto_bolsa">
+                                <input type="checkbox" id="impuesto_bolsa" name="impuesto_bolsa">
                                 <span class="check1"></span>
                             </label>
                         </div>
-                        <!-- Control de inventario (checkboxes, no excluyentes) -->
-                        <div class="col-lg-12 col-md-12 col-sm-12 mt-3 mb-3">
-                            <label class="form-label">Control de inventario</label>
+
+                        {{-- CONTROL DE INVENTARIO --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            <label class="form-label">Control de Inventario</label>
                             <div class="d-flex flex-wrap gap-4 mt-1">
                                 <div class="form-check">
                                     <input type="checkbox" class="form-check-input" id="control_serie" name="control_serie" value="1">
@@ -106,9 +153,21 @@
                             </div>
                             <small class="text-muted">Si ninguno está marcado, el stock se maneja por unidades simples.</small>
                         </div>
+
+                        {{-- PROVEEDORES Y DESCRIPCIÓN --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="fw-bold text-secondary text-uppercase">Datos adicionales</small><hr class="mt-1 mb-2"></div>
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            <label class="form-label">Proveedores asociados</label>
+                            <select name="ids_proveedores[]" id="ids_proveedores" class="form-select" multiple style="height:80px">
+                                @foreach($proveedores as $prov)
+                                    <option value="{{$prov->id_proveedores}}">{{$prov->proveedores_nombre}}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Ctrl+clic para seleccionar varios</small>
+                        </div>
                         <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
                             <label for="pro_descripcion" class="form-label">Descripción</label>
-                            <textarea name="pro_descripcion" id="pro_descripcion" class="form-control w-100" rows="4"></textarea>
+                            <textarea name="pro_descripcion" id="pro_descripcion" class="form-control w-100" rows="3"></textarea>
                         </div>
                         <div class="col-lg-12 col-md-12 col-sm-12 text-center ">
                             <label for="">Imagen (*)</label>

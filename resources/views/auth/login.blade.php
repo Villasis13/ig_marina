@@ -62,27 +62,159 @@
     <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
     <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
     <script src="{{asset('assets/js/config.js')}}"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d1b2a 0%, #1a3050 40%, #0f4c75 100%) !important;
+            min-height: 100vh;
+        }
+
+        .authentication-wrapper {
+            background: transparent !important;
+        }
+
+        .login-card {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 8px 25px rgba(0, 0, 0, 0.25);
+            border: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #696cff, #0f4c75, #1a3050);
+        }
+
+        .login-card .card-body {
+            padding: 2.5rem 2.5rem 2rem;
+        }
+
+        .login-logo-wrapper {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .login-logo-wrapper img {
+            max-width: 260px;
+            width: 100%;
+        }
+
+        .login-title {
+            color: #2c3e50;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        .login-card .form-label {
+            font-weight: 500;
+            color: #495057;
+            font-size: 0.875rem;
+        }
+
+        .login-card .form-control {
+            border: 1.5px solid #dee2e6;
+            border-radius: 8px;
+            padding: 0.6rem 0.85rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .login-card .form-control:focus {
+            border-color: #696cff;
+            box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.12);
+        }
+
+        .login-card .input-group .form-control {
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+        }
+
+        .login-card .input-group-text {
+            border: 1.5px solid #dee2e6;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            background: #f8f9fa;
+            transition: border-color 0.2s;
+        }
+
+        .login-card .input-group:focus-within .input-group-text {
+            border-color: #696cff;
+        }
+
+        .login-card .btn-primary {
+            background: linear-gradient(135deg, #696cff, #5558e3);
+            border: none;
+            border-radius: 8px;
+            padding: 0.65rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.03em;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(105, 108, 255, 0.35);
+        }
+
+        .login-card .btn-primary:hover {
+            background: linear-gradient(135deg, #5558e3, #4346c9);
+            box-shadow: 0 6px 20px rgba(105, 108, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .login-card .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.25rem;
+            color: #8a9bb0;
+            font-size: 0.78rem;
+        }
+
+        .login-footer span {
+            display: block;
+            color: #6c757d;
+            font-size: 0.82rem;
+        }
+
+        .wave-bg {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0.06;
+            pointer-events: none;
+        }
+    </style>
 </head>
 
 <body>
 <!-- Content -->
 
+<svg class="wave-bg" viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#ffffff" fill-opacity="1" d="M0,192L48,176C96,160,192,128,288,133.3C384,139,480,181,576,197.3C672,213,768,203,864,181.3C960,160,1056,128,1152,128C1248,128,1344,160,1392,176L1440,192L1440,320L1392,320L1344,320L1248,320L1152,320L1056,320L960,320L864,320L768,320L672,320L576,320L480,320L384,320L288,320L192,320L96,320L48,320L0,320Z"></path>
+</svg>
+
 <div class="container-xxl">
     <div class="authentication-wrapper authentication-basic container-p-y">
         <div class="authentication-inner">
-            <!-- Register -->
-            <div class="card">
+            <div class="card login-card">
                 <div class="card-body">
-                    <!-- Logo -->
-                    <div class="app-brand justify-content-center">
-                        <a href="#" class="app-brand-link gap-2">
-                            <img style="max-width: 350px" src="{{asset('logo_IGLM.png')}}" alt="">
-                        </a>
+                    <div class="login-logo-wrapper">
+                        <img src="{{asset('logo_IGLM.png')}}" alt="IG La Marina">
                     </div>
-                    <!-- /Logo -->
-{{--                    <h4 class="mb-4 text-center">¡Bienvenido 👋!</h4>--}}
 
-                    <form id="formAuthentication" class="mb-3"  method="POST" enctype = "multipart/form-data">
+                    <form id="formAuthentication" class="mb-3" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-3">
                             <label for="username" class="form-label">Nombre de usuario</label>
@@ -113,7 +245,7 @@
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="remember" name="remember" />
-                                <label class="form-check-label" for="remember"> Recordar Sesión</label>
+                                <label class="form-check-label" for="remember">Recordar Sesión</label>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -121,15 +253,12 @@
                         </div>
                     </form>
 
-                    <p class="text-center">
-{{--                        <span>New on our platform?</span>--}}
-{{--                        <a href="auth-register-basic.html">--}}
-{{--                            <span>Create an account</span>--}}
-{{--                        </a>--}}
-                    </p>
+                    <div class="login-footer">
+                        <span>Sistema de Gestión Comercial</span>
+                        IG La Marina &copy; {{ date('Y') }}
+                    </div>
                 </div>
             </div>
-            <!-- /Register -->
         </div>
     </div>
 </div>

@@ -32,6 +32,8 @@ use App\Models\Tipo_pago;
 use App\Models\Tipo_venta;
 use App\Models\Venta_detalle;
 use App\Models\Ventas;
+use App\Models\Lotes;
+use App\Models\Series;
 use App\Models\Ventas_detalle_pago;
 use Codedge\Fpdf\Fpdf\Fpdf;
 use Illuminate\Http\Request;
@@ -172,7 +174,9 @@ class GestionventasController extends Controller
             $clientes = $this->clientes->listar_clientes();
             $tipo_pago = $this->tipo_pago->listar_tipo_pago();
             $documento = $this->tipo_documento->listar_tipo_documento();
-            return view('gestionventas/realizar_venta', compact('opciones','documento','tipo_pago','clientes','productos','validar_caja'));
+            $monedas = DB::table('monedas')->where('activo', 1)->get();
+            $vendedores = DB::table('users')->where('users_estado', 1)->select('id_users','nombre_users','username')->get();
+            return view('gestionventas/realizar_venta', compact('opciones','documento','tipo_pago','clientes','productos','validar_caja','monedas','vendedores'));
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             echo "<script>
@@ -523,6 +527,19 @@ class GestionventasController extends Controller
 
 
 
+    public function buscar_series_producto(Request $request)
+    {
+        try {
+            $series = Series::where('id_pro', $request->id_pro)
+                ->where('estado', 'disponible')
+                ->get(['id_serie_producto', 'numero_serie', 'numero_motor', 'color', 'anio_fabricacion']);
+            return response()->json(['result' => ['code' => 1, 'data' => $series]]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['result' => ['code' => 2, 'data' => []]]);
+        }
+    }
+
     public function generar_venta(Request $request){
         try {
             $message = "";
@@ -599,7 +616,9 @@ class GestionventasController extends Controller
                         $numero_cliente = $request->numero_documento ? $request->numero_documento : 11111111;
                         $nombre_cliente = $request->nombre_cliente == 'ANONIMO' ? 'ANONIMO' : $request->nombre_cliente;
                         // fin cliente
-                        $fecha = date('Y-m-d H:i:s'); //  fecha para la venta
+                        $fecha = $request->fecha_emision
+                            ? date('Y-m-d H:i:s', strtotime($request->fecha_emision))
+                            : date('Y-m-d H:i:s'); //  fecha para la venta
                         $cliente = $this->clientes->buscarCliente_numero($numero_cliente);
                         if (!$cliente){
                             DB::table('clientes')->insert(['id_tipo_documento'=>$request->id_tipo_documento,'cliente_razonsocial'=>$nombre_cliente, 'cliente_nombre'=>$nombre_cliente, 'cliente_numero'=>$numero_cliente, 'cliente_direccion'=>$request->direccion_cliente, 'cliente_telefono'=>$request->telefono_cliente, 'cliente_fecha'=>date('Y-m-d H:i:s'), 'cliente_estado'=>1,'cliente_codigo'=>$microtime]);
@@ -656,7 +675,8 @@ class GestionventasController extends Controller
                                         'venta_tipo_campo' =>0, // este campos sirve cuando la venta puede ser en dolares o soles
                                         'venta_condicion_resumen' => 1,
                                         'venta_tipo_envio' => 0,
-                                        'venta_direccion' => null,
+                                        'venta_direccion' => $request->direccion_entrega ?: null,
+                                        'venta_metodo_envio' => $request->metodo_envio ?: null,
                                         'venta_tipo' => $request->tipo_comprobante,
                                         'venta_serie' => $sacar_serie->serie,
                                         'venta_correlativo' => $sacar_serie->correlativo + 1,
@@ -674,6 +694,10 @@ class GestionventasController extends Controller
                                         'venta_vuelto' => 0.00,
                                         'venta_fecha' => $fecha,
                                         'venta_observacion' => null,
+                                        'id_vendedor' => $request->id_vendedor ?: Auth::id(),
+                                        'venta_motivo' => $request->venta_motivo ?: 'ventas',
+                                        'venta_fecha_vencimiento' => $request->venta_fecha_vencimiento ?: null,
+                                        'venta_condicion_pago' => $request->venta_condicion_pago ?: 'contado',
                                         'tipo_documento_modificar' => "",
                                         'serie_modificar' => null,
                                         'correlativo_modificar' => "",
@@ -728,6 +752,12 @@ class GestionventasController extends Controller
                                                     'venta_detalle_valor_total' => (($precio - $cantidad_igv) * $d['cantidad']),
                                                     'venta_detalle_importe_total' => $precio * $d['cantidad'],
                                                 ];
+                                                // Marcar serie como vendida si el producto usa control de serie
+                                                if (!empty($d['id_serie_producto'])) {
+                                                    Series::where('id_serie_producto', $d['id_serie_producto'])
+                                                        ->where('estado', 'disponible')
+                                                        ->update(['estado' => 'vendido', 'id_venta' => $ultima_venta->id_venta]);
+                                                }
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);
                                             if ($guardar_venta_detalle){
@@ -818,7 +848,8 @@ class GestionventasController extends Controller
                                         'venta_tipo_campo' =>0, // este campos sirve cuando la venta puede ser en dolares o soles
                                         'venta_condicion_resumen' => 1,
                                         'venta_tipo_envio' => 0,
-                                        'venta_direccion' => null,
+                                        'venta_direccion' => $request->direccion_entrega ?: null,
+                                        'venta_metodo_envio' => $request->metodo_envio ?: null,
                                         'venta_tipo' => $request->tipo_comprobante,
                                         'venta_serie' => $sacar_serie->serie,
                                         'venta_correlativo' => $sacar_serie->correlativo + 1,
@@ -836,6 +867,10 @@ class GestionventasController extends Controller
                                         'venta_vuelto' => $vuelto,
                                         'venta_fecha' => $fecha,
                                         'venta_observacion' => null,
+                                        'id_vendedor' => $request->id_vendedor ?: Auth::id(),
+                                        'venta_motivo' => $request->venta_motivo ?: 'ventas',
+                                        'venta_fecha_vencimiento' => $request->venta_fecha_vencimiento ?: null,
+                                        'venta_condicion_pago' => $request->venta_condicion_pago ?: 'contado',
                                         'tipo_documento_modificar' => "",
                                         'serie_modificar' => null,
                                         'correlativo_modificar' => "",
@@ -890,6 +925,12 @@ class GestionventasController extends Controller
                                                     'venta_detalle_valor_total' => (($precio - $cantidad_igv) * $d['cantidad']),
                                                     'venta_detalle_importe_total' => $precio * $d['cantidad'],
                                                 ];
+                                                // Marcar serie como vendida si el producto usa control de serie
+                                                if (!empty($d['id_serie_producto'])) {
+                                                    Series::where('id_serie_producto', $d['id_serie_producto'])
+                                                        ->where('estado', 'disponible')
+                                                        ->update(['estado' => 'vendido', 'id_venta' => $ultima_venta->id_venta]);
+                                                }
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);
                                             if ($guardar_venta_detalle){
@@ -932,8 +973,31 @@ class GestionventasController extends Controller
                                                         $stock_reducir = $d->venta_detalle_cantidad;
                                                         $producto = $this->productos->datos_productos($d->id_pro);
                                                         if ($producto->impuesto_bolsa == 0){
-                                                            $actualizar_stock = DB::table('productos')->where('id_pro','=',$d->id_pro)
-                                                                ->update(['pro_stock'=>$producto->pro_stock - $stock_reducir]);
+                                                            if ($producto->control_lote) {
+                                                                // Consumir lotes FIFO (por fecha_vencimiento ASC, luego id ASC)
+                                                                $pendiente = $stock_reducir;
+                                                                $lotes = Lotes::where('id_pro', $d->id_pro)
+                                                                    ->where('estado', 'disponible')
+                                                                    ->where('cantidad', '>', 0)
+                                                                    ->orderByRaw('ISNULL(fecha_vencimiento), fecha_vencimiento ASC')
+                                                                    ->orderBy('id_lote', 'asc')
+                                                                    ->get();
+                                                                foreach ($lotes as $lote) {
+                                                                    if ($pendiente <= 0) break;
+                                                                    $consumir = min($lote->cantidad, $pendiente);
+                                                                    $nueva_cantidad = $lote->cantidad - $consumir;
+                                                                    Lotes::where('id_lote', $lote->id_lote)->update([
+                                                                        'cantidad' => $nueva_cantidad,
+                                                                        'estado'   => $nueva_cantidad <= 0 ? 'agotado' : 'disponible',
+                                                                    ]);
+                                                                    $pendiente -= $consumir;
+                                                                }
+                                                                $nuevo_stock = Lotes::stockDisponible($d->id_pro);
+                                                                DB::table('productos')->where('id_pro', $d->id_pro)->update(['pro_stock' => $nuevo_stock]);
+                                                            } else {
+                                                                DB::table('productos')->where('id_pro','=',$d->id_pro)
+                                                                    ->update(['pro_stock'=>$producto->pro_stock - $stock_reducir]);
+                                                            }
                                                         }
                                                     }
                                                     // Confirmar transacción

@@ -79,7 +79,10 @@ class LogisticaController extends Controller
             $cate = $this->categorias->listar_categoria();
             $opciones = $this->submenu->optiones_por_vista("gestionar_productos");
             $tipoAfectacion = DB::table('tipo_afectacion')->get();
-            return view('logistica/gestionar_productos', compact('opciones','cate','productos','tipoAfectacion'));
+            $proveedores = $this->proveedores->listar_proveedores();
+            $familias = DB::table('familias')->where('fa_estado', 1)->get();
+            $monedas = DB::table('monedas')->where('activo', 1)->get();
+            return view('logistica/gestionar_productos', compact('opciones','cate','productos','tipoAfectacion','proveedores','familias','monedas'));
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             echo "<script>
@@ -356,8 +359,10 @@ class LogisticaController extends Controller
                             'id_ca'=>$request->id_ca,
                             'id_medida'=>$request->unidadMedida,
                             'id_tipo_afectacion'=>$request->tipoAfectacion,
+                            'id_moneda'=>$request->input('id_moneda', 1),
                             'pro_nombre'=>$request->pro_nombre,
                             'pro_codigo'=>$request->pro_codigo,
+                            'pro_codigo_barra'=>$request->pro_codigo_barra,
                             'pro_descripcion'=>$request->pro_descripcion,
                             'pro_presentacion'=>$request->pro_presentacion,
                             'pro_medida'=>$request->pro_medida,
@@ -365,14 +370,26 @@ class LogisticaController extends Controller
                             'pro_precio_uni'=>$request->pro_precio_uni,
                             'pro_precio_valor_ma'=>$valormayo,
                             'pro_precio_uni_ma'=>$request->pro_precio_uni_ma,
+                            'pro_precio_costo'=>$request->input('pro_precio_costo', 0),
+                            'pro_valor_costo'=>$request->input('pro_valor_costo', 0),
+                            'pro_costo_promedio'=>$request->input('pro_precio_costo', 0),
+                            'pro_fecha_adquisicion'=>$request->pro_fecha_adquisicion ?: null,
                             'pro_porcen_igv'=>$request->tipoAfectacion == 1 ? 1.18 : 0,
                             'pro_stock'=>0,
+                            'stock_minimo'=>$request->input('stock_minimo', 0),
+                            'stock_maximo'=>$request->input('stock_maximo', 0),
                             'pro_foto'=>$foto_productos,
                             'pro_estado'=>1,
                             'impuesto_bolsa'=>$request->has('impuesto_bolsa') ? 1 : 0,
                             'control_serie' => $request->has('control_serie') ? 1 : 0,
                             'control_lote'  => $request->has('control_lote')  ? 1 : 0,
                         ]);
+                        if ($guardar && $request->filled('ids_proveedores')) {
+                            $nuevo = DB::table('productos')->where('pro_codigo', $request->pro_codigo)->first();
+                            foreach ($request->ids_proveedores as $id_prov) {
+                                DB::table('producto_proveedor')->insertOrIgnore(['id_pro'=>$nuevo->id_pro,'id_proveedores'=>$id_prov]);
+                            }
+                        }
                         $result = $guardar ? 1 : 2;
                         $message = "¡Registro guardado exitoso!";
                     }else{
@@ -414,8 +431,10 @@ class LogisticaController extends Controller
                         'id_ca'=>$request->id_ca,
                         'id_medida'=>$request->unidadMedida,
                         'id_tipo_afectacion'=>$request->tipoAfectacion,
+                        'id_moneda'=>$request->input('id_moneda', 1),
                         'pro_nombre'=>$request->pro_nombre,
                         'pro_codigo'=>$request->pro_codigo,
+                        'pro_codigo_barra'=>$request->pro_codigo_barra,
                         'pro_descripcion'=>$request->pro_descripcion,
                         'pro_presentacion'=>$request->pro_presentacion,
                         'pro_medida'=>$request->pro_medida,
@@ -423,12 +442,24 @@ class LogisticaController extends Controller
                         'pro_precio_uni'=>$request->pro_precio_uni,
                         'pro_precio_valor_ma'=>$valormayo,
                         'pro_precio_uni_ma'=>$request->pro_precio_uni_ma,
+                        'pro_precio_costo'=>$request->input('pro_precio_costo', 0),
+                        'pro_valor_costo'=>$request->input('pro_valor_costo', 0),
+                        'pro_fecha_adquisicion'=>$request->pro_fecha_adquisicion ?: null,
                         'pro_porcen_igv'=>$request->tipoAfectacion == 1 ? 1.18 : 0,
                         'pro_foto'=>$foto_productos,
+                        'stock_minimo'=>$request->input('stock_minimo', 0),
+                        'stock_maximo'=>$request->input('stock_maximo', 0),
                         'impuesto_bolsa'=>$request->has('impuesto_bolsa') ? 1 : 0,
                         'control_serie' => $request->has('control_serie') ? 1 : 0,
                         'control_lote'  => $request->has('control_lote')  ? 1 : 0,
                     ]);
+                    // Sincronizar proveedores asociados
+                    DB::table('producto_proveedor')->where('id_pro', $request->id_pro)->delete();
+                    if ($request->filled('ids_proveedores')) {
+                        foreach ($request->ids_proveedores as $id_prov) {
+                            DB::table('producto_proveedor')->insertOrIgnore(['id_pro'=>$request->id_pro,'id_proveedores'=>$id_prov]);
+                        }
+                    }
                     $result = $actualizar == 1 || $actualizar == 0 ? 1 : 2;
                     $message = "¡Registro actualizado exitoso!";
                 }else{
@@ -580,8 +611,24 @@ class LogisticaController extends Controller
                             } else {
                                 $nuevoStock = $producto->pro_stock + $d->cantidad;
                             }
-                            DB::table('productos')->where('id_pro', $d->id_pro)
-                                ->update(['pro_stock' => $nuevoStock]);
+                            // Calcular costo promedio ponderado
+                            $costo_unitario_entrada = floatval($d->producto_precio_unit ?? 0);
+                            if ($costo_unitario_entrada > 0) {
+                                $stock_anterior = floatval($producto->pro_stock);
+                                $costo_promedio_anterior = floatval($producto->pro_costo_promedio ?? 0);
+                                $cantidad_entrada = floatval($d->cantidad);
+                                if ($stock_anterior + $cantidad_entrada > 0) {
+                                    $nuevo_promedio = ($stock_anterior * $costo_promedio_anterior + $cantidad_entrada * $costo_unitario_entrada)
+                                        / ($stock_anterior + $cantidad_entrada);
+                                } else {
+                                    $nuevo_promedio = $costo_unitario_entrada;
+                                }
+                                DB::table('productos')->where('id_pro', $d->id_pro)
+                                    ->update(['pro_stock' => $nuevoStock, 'pro_costo_promedio' => round($nuevo_promedio, 4)]);
+                            } else {
+                                DB::table('productos')->where('id_pro', $d->id_pro)
+                                    ->update(['pro_stock' => $nuevoStock]);
+                            }
                         }
                         $result = $detalle ? 1 : 2;
                         if($result == 1){
@@ -669,12 +716,14 @@ class LogisticaController extends Controller
             $result = 2;
             $message = "";
             $result =  $this->productos->datos_productos($request->id_pro);
-
+            $proveedores_ids = DB::table('producto_proveedor')
+                ->where('id_pro', $request->id_pro)
+                ->pluck('id_proveedores');
         }catch  (\Exception $e){
             $this->logs->insertarLog($e);
             return response(json_encode($e),200)->header('Content-type','text/plain');
         }
-        return json_encode(array("result" => array("code" => $result,'message'=>$message)));
+        return json_encode(array("result" => array("code" => $result,'message'=>$message,'proveedores_ids'=>$proveedores_ids ?? [])));
 
     }
     public function buscador_productos( Request $request){

@@ -13,6 +13,7 @@ use App\Models\Submenu;
 use App\Models\Tipo_documento;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -498,10 +499,18 @@ class ConfiguracionController extends Controller
                     $result = $user->save();
                 }
             }else{
+                $rolObjetivo = DB::table('model_has_roles')
+                    ->join('roles','roles.id','=','model_has_roles.role_id')
+                    ->where('model_has_roles.model_id', $request->id_users)
+                    ->value('roles.name');
+                if ($rolObjetivo === 'superadmin' && !Auth::user()->hasRole('superadmin')) {
+                    return response(json_encode(['error' => 'No tienes permiso para editar a un superadmin']), 403)->header('Content-type','text/plain');
+                }
                 $datos_users = DB::table('users')->where('users.id_users','=',$request->id_users)->first();
                 $actualizar_usuario = User::find($request->id_users);
                 $actualizar_usuario->nombre_users = $request->nombre_persona;
                 $actualizar_usuario->username = $request->username;
+                $actualizar_usuario->email = $request->email;
                 DB::table('model_has_roles')->where('model_id',$request->id_users)->delete();
                 $actualizar_usuario->assignRole($request->id_roles);
                 if($request->hasFile('foto_users') != null ){

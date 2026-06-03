@@ -59,7 +59,8 @@ class Productos extends Model
             $palabras = explode(' ', $valor);
 
             $result = DB::table('productos as p')
-                ->where('p.pro_estado', '=', 1);
+                ->where('p.pro_estado', '=', 1)
+                ->select('p.*');
             if ($medida){
                 $result->where('p.id_medida', '=', $medida);
             }

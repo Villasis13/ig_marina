@@ -55,7 +55,8 @@ class GestionController extends Controller
             $tipo_documento = $this->tipoDocument->listar_tipo_documento();
             $proveedores = $this->proveedores->listar_proveedores();
             $opciones = $this->submenu->optiones_por_vista("proveedores");
-            return view('gestion/proveedores', compact('proveedores','opciones','tipo_documento'));
+            $departamentos = DB::table('ubigeo_peru_departments')->orderBy('name')->get();
+            return view('gestion/proveedores', compact('proveedores','opciones','tipo_documento','departamentos'));
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             echo "<script>
@@ -91,13 +92,19 @@ class GestionController extends Controller
 
             $clientes = DB::table('clientes as c')
                 ->join('tipo_documento as td','td.id_tipo_documento','=','c.id_tipo_documento')
-                ->where('c.cliente_estado','=',1)->get();
+                ->leftJoin('ubigeo_peru_districts as ud','ud.id','=','c.cliente_ubigeo')
+                ->leftJoin('ubigeo_peru_provinces as up','up.id','=','ud.province_id')
+                ->leftJoin('ubigeo_peru_departments as udep','udep.id','=','ud.department_id')
+                ->where('c.cliente_estado','=',1)
+                ->select('c.*','td.tipo_documento_identidad_abr','ud.name as distrito','up.name as provincia','udep.name as departamento')
+                ->get();
 
             $tipoDocumentos = DB::table('tipo_documento')->get();
+            $departamentos = DB::table('ubigeo_peru_departments')->orderBy('name')->get();
 
             $opciones = $this->submenu->optiones_por_vista("clientes");
 
-            return view('gestion/clientes', compact('opciones','tipoDocumentos','clientes'));
+            return view('gestion/clientes', compact('opciones','tipoDocumentos','clientes','departamentos'));
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             echo "<script>
@@ -223,11 +230,16 @@ class GestionController extends Controller
                 if(!$validar){
                     $guardar = DB::table('proveedores')->insert([
                         'id_tipo_documento'=>$request->id_tipo_documento,
+                        'proveedores_tipo_persona'=>$request->proveedores_tipo_persona ?: 'juridica',
                         'proveedores_numero_documento'=>$request->proveedores_numero_documento,
                         'proveedores_nombre'=>$request->proveedores_nombre,
+                        'proveedores_sexo'=>$request->proveedores_sexo,
                         'proveedores_direccion'=>$request->proveedores_direccion,
                         'proveedores_telefono'=>$request->proveedores_telefono,
                         'proveedores_correo'=>$request->proveedores_correo,
+                        'proveedores_nombre_contacto'=>$request->proveedores_nombre_contacto,
+                        'proveedores_cargo'=>$request->proveedores_cargo,
+                        'proveedores_ubigeo'=>$request->proveedores_ubigeo ?: null,
                         'proveedores_estado'=>1,
                     ]);
                     $result = $guardar ? 1 : 2;
@@ -281,11 +293,16 @@ class GestionController extends Controller
                 if(!$validar || $validar->id_proveedores == $request->id_proveedores){
                     $actualizar = DB::table('proveedores')->where('id_proveedores','=',$request->id_proveedores)->update([
                         'id_tipo_documento'=>$request->id_tipo_documento,
+                        'proveedores_tipo_persona'=>$request->proveedores_tipo_persona ?: 'juridica',
                         'proveedores_numero_documento'=>$request->proveedores_numero_documento,
                         'proveedores_nombre'=>$request->proveedores_nombre,
+                        'proveedores_sexo'=>$request->proveedores_sexo,
                         'proveedores_direccion'=>$request->proveedores_direccion,
                         'proveedores_telefono'=>$request->proveedores_telefono,
                         'proveedores_correo'=>$request->proveedores_correo,
+                        'proveedores_nombre_contacto'=>$request->proveedores_nombre_contacto,
+                        'proveedores_cargo'=>$request->proveedores_cargo,
+                        'proveedores_ubigeo'=>$request->proveedores_ubigeo ?: null,
                     ]);
                     $result = $actualizar ?1:2;
                     $message = "¡Registro actualizado exitoso!";
@@ -356,10 +373,16 @@ class GestionController extends Controller
                 if(!$validar){
                     $guardar = DB::table('clientes')->insert([
                         'id_tipo_documento'=>$request->id_tipo_documento,
+                        'cliente_tipo_persona'=>$request->cliente_tipo_persona ?: 'natural',
                         'cliente_numero'=>$request->cliente_numero,
                         'cliente_razonsocial'=>$request->cliente_nombre_general,
                         'cliente_nombre'=>$request->cliente_nombre_general,
+                        'cliente_sexo'=>$request->cliente_sexo,
                         'cliente_direccion'=>$request->cliente_direccion,
+                        'cliente_telefono'=>$request->cliente_telefono,
+                        'cliente_correo'=>$request->cliente_correo,
+                        'cliente_atencion'=>$request->cliente_atencion,
+                        'cliente_ubigeo'=>$request->cliente_ubigeo ?: null,
                         'cliente_fecha'=>date('Y-m-d'),
                         'cliente_estado'=>1,
                     ]);
@@ -378,10 +401,16 @@ class GestionController extends Controller
                 if(!$validar){
                     $actualizar = DB::table('clientes')->where('id_clientes','=',$request->id_clientes)->update([
                         'id_tipo_documento'=>$request->id_tipo_documento,
+                        'cliente_tipo_persona'=>$request->cliente_tipo_persona ?: 'natural',
                         'cliente_numero'=>$request->cliente_numero,
                         'cliente_razonsocial'=>$request->cliente_nombre_general,
                         'cliente_nombre'=>$request->cliente_nombre_general,
+                        'cliente_sexo'=>$request->cliente_sexo,
                         'cliente_direccion'=>$request->cliente_direccion,
+                        'cliente_telefono'=>$request->cliente_telefono,
+                        'cliente_correo'=>$request->cliente_correo,
+                        'cliente_atencion'=>$request->cliente_atencion,
+                        'cliente_ubigeo'=>$request->cliente_ubigeo ?: null,
                         'cliente_estado'=>1,
                     ]);
                     $result = $actualizar ?1:2;
@@ -465,16 +494,35 @@ class GestionController extends Controller
         try {
             $result = 2;
             $message = "";
-            $datos =  DB::table('clientes')->where('id_clientes','=',$request->id)->first();
+            $datos = DB::table('clientes')->where('id_clientes','=',$request->id)->first();
+            $ubigeo = null;
             if ($datos){
                 $result = 1;
+                if ($datos->cliente_ubigeo) {
+                    $dist = DB::table('ubigeo_peru_districts')->where('id', $datos->cliente_ubigeo)->first();
+                    $prov = $dist ? DB::table('ubigeo_peru_provinces')->where('id', $dist->province_id)->first() : null;
+                    $ubigeo = [
+                        'dept_id' => $dist ? $dist->department_id : null,
+                        'prov_id' => $dist ? $dist->province_id : null,
+                        'dist_id' => $datos->cliente_ubigeo,
+                    ];
+                }
             }
         }catch  (\Exception $e){
             $this->logs->insertarLog($e);
             return response(json_encode($e),200)->header('Content-type','text/plain');
         }
-        return json_encode(array("result" => array("code" => $result,'message'=>$message,'datos'=>$datos)));
+        return json_encode(array("result" => array("code" => $result,'message'=>$message,'datos'=>$datos,'ubigeo'=>$ubigeo)));
+    }
 
+    public function ubigeo_provincias(Request $request){
+        $provincias = DB::table('ubigeo_peru_provinces')->where('department_id', $request->dept_id)->orderBy('name')->get();
+        return response()->json($provincias);
+    }
+
+    public function ubigeo_distritos(Request $request){
+        $distritos = DB::table('ubigeo_peru_districts')->where('province_id', $request->prov_id)->orderBy('name')->get();
+        return response()->json($distritos);
     }
 
 

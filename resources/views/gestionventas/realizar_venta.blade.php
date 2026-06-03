@@ -34,6 +34,37 @@
             </div>
         </div>
     </div>
+    <!-- Modal Series de Vehículo -->
+    <div class="modal fade" id="modal_series_vehiculo" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-motorcycle"></i> Seleccionar Número de Serie</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2">Producto: <strong id="serie_modal_producto_nombre"></strong></p>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>N° Serie</th>
+                                    <th>N° Motor</th>
+                                    <th>Color</th>
+                                    <th>Año</th>
+                                    <th>Seleccionar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody_series_vehiculo">
+                                <tr><td colspan="5" class="text-center text-muted">Cargando series...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="msg_sin_series" class="text-danger d-none">No hay series disponibles para este producto.</p>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Modal -->
     <div class="modal fade" id="modal_clientes_general" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -104,53 +135,114 @@
                                     <div class="col-lg-4">
                                         <div class="row">
                                             <div class="col-lg-12">
-                                                <p class="linea_titulo_general">Datos de venta</p>
+                                                <p class="linea_titulo_general">Datos de Comprobante</p>
                                             </div>
                                             <input type="hidden" name="tipo_venta__" id="tipo_venta__" value="1">
-                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-3 mb-1">
-                                                <label for="habilitarCheckMoto" class="text-uppercase">Habilitar Serie Vehículo</label>
-                                                <div class="theme-switch">
-                                                    <input type="checkbox" id="habilitarCheckMoto" name="habilitarCheckMoto">
-                                                    <label for="habilitarCheckMoto"></label>
-                                                </div>
+                                            <input type="hidden" name="id_formas_pago" id="id_formas_pago" value="1">
+
+                                            {{-- Fecha emisión --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-2 mb-1">
+                                                <label for="fecha_emision">Fecha Emisión</label>
+                                                <input type="date" name="fecha_emision" id="fecha_emision" class="form-control w-50" value="{{ date('Y-m-d') }}">
                                             </div>
-                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1  mb-1">
-                                                <label for="tipo_comprobante">Tipo de Comprobante</label>
+
+                                            {{-- Motivo --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="venta_motivo">Motivo</label>
+                                                <select name="venta_motivo" id="venta_motivo" class="form-control w-50">
+                                                    <option value="ventas">Ventas</option>
+                                                    <option value="exportacion">Exportación</option>
+                                                </select>
+                                            </div>
+
+                                            {{-- Tipo comprobante --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="tipo_comprobante">Tipo Comprobante</label>
                                                 <select name="tipo_comprobante" id="tipo_comprobante" class="form-control w-50">
                                                     <option value="03">Boleta</option>
                                                     <option value="01">Factura</option>
                                                 </select>
                                             </div>
+
+                                            {{-- Serie y Número --}}
                                             <div class="col-lg-6 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
                                                 <label for="serie">Serie</label>
-                                                <select name="serie" id="serie" readonly class="form-control w-50">
-
-                                                </select>
+                                                <select name="serie" id="serie" class="form-control w-50"></select>
                                             </div>
                                             <div class="col-lg-6 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                <label for="numero_correlativo">Numero</label>
+                                                <label for="numero_correlativo">Número</label>
                                                 <input type="text" readonly class="form-control w-50" id="numero_correlativo" name="numero_correlativo">
                                             </div>
+
+                                            {{-- Moneda --}}
                                             <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
                                                 <label for="id_moneda">Moneda</label>
                                                 <select name="id_moneda" id="id_moneda" class="form-control w-50">
-                                                        <option value="1">SOLES</option>
+                                                    @foreach($monedas as $m)
+                                                        <option value="{{$m->id_moneda}}">{{$m->simbolo}} {{$m->moneda}}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
-                                            <div class="col-lg-12 col-md-12 col-sm-12"  id="contanierTableDebito">
+
+                                            {{-- Vendedor --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="id_vendedor">Vendedor</label>
+                                                <select name="id_vendedor" id="id_vendedor" class="form-control w-50">
+                                                    @foreach($vendedores as $v)
+                                                        <option value="{{$v->id_users}}" {{ $v->id_users == Auth::id() ? 'selected' : '' }}>
+                                                            {{$v->nombre_users ?: $v->username}}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            {{-- Habilitar Serie Vehículo --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="habilitarCheckMoto" class="text-uppercase" style="font-size:12px">Serie Vehículo</label>
+                                                <div class="theme-switch">
+                                                    <input type="checkbox" id="habilitarCheckMoto" name="habilitarCheckMoto">
+                                                    <label for="habilitarCheckMoto"></label>
+                                                </div>
+                                            </div>
+
+                                            <hr class="my-2">
+
+                                            {{-- Condición de pago --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="venta_condicion_pago"><b>Condición Pago</b></label>
+                                                <select name="venta_condicion_pago" id="venta_condicion_pago" class="form-control w-50" onchange="actualizarCondicionPago(this.value)">
+                                                    <option value="contado">Contado</option>
+                                                    <option value="contra_entrega">Contra entrega</option>
+                                                    <option value="5">Crédito 5 días</option>
+                                                    <option value="10">Crédito 10 días</option>
+                                                    <option value="15">Crédito 15 días</option>
+                                                    <option value="30">Crédito 30 días</option>
+                                                    <option value="45">Crédito 45 días</option>
+                                                    <option value="custom">Crédito (personalizado)</option>
+                                                </select>
+                                            </div>
+
+                                            {{-- Fecha vencimiento --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
+                                                <label for="venta_fecha_vencimiento">Vencimiento</label>
+                                                <input type="date" name="venta_fecha_vencimiento" id="venta_fecha_vencimiento" class="form-control w-50" value="{{ date('Y-m-d') }}">
+                                            </div>
+
+                                            {{-- Bloque contado: tipo pago + monto --}}
+                                            <div class="col-lg-12 col-md-12 col-sm-12" id="contanierTableDebito">
                                                 <div class="row">
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                        <label for="partir_pago_check">Partir Pago</label>
+                                                        <label for="partir_pago_check" style="font-size:12px">Partir Pago</label>
                                                         <div class="theme-switch">
                                                             <input type="checkbox" id="partir_pago_check" name="partir_pago_check">
                                                             <label for="partir_pago_check"></label>
                                                         </div>
                                                     </div>
                                                     <input type="hidden" name="vali_partir_total" id="vali_partir_total">
-                                                    <div class="col-lg-12 col-md-12 col-sm-12  ">
+                                                    <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <div class="d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                            <label for="id_tipo_pago">Tipo de Pago</label>
-                                                            <select name="id_tipo_pago" id="id_tipo_pago" class="form-control w-50"  >
+                                                            <label for="id_tipo_pago">Tipo Pago</label>
+                                                            <select name="id_tipo_pago" id="id_tipo_pago" class="form-control w-50">
                                                                 <option value="">Seleccionar</option>
                                                                 @foreach($tipo_pago as $t)
                                                                     <option value="{{$t->id_tipo_pago}}">{{$t->tipo_pago_nombre}}</option>
@@ -158,17 +250,16 @@
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12  ">
+                                                    <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <div class="d-flex align-items-center justify-content-between mt-1 mb-1">
                                                             <label for="pago_cliente">Monto</label>
-                                                            <input type="text" name="pago_cliente" id="pago_cliente"  class="form-control w-50 p-1" onkeyup="validar_numeros(this.id)" onchange="dar_sobras_pago2()">
+                                                            <input type="text" name="pago_cliente" id="pago_cliente" class="form-control w-50 p-1" onkeyup="validar_numeros(this.id)" onchange="dar_sobras_pago2()">
                                                         </div>
                                                     </div>
-
-                                                    <div class="col-lg-12 col-md-12 col-sm-12  contenedorPago2" style="display: none" >
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 contenedorPago2" style="display:none">
                                                         <div class="d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                            <label for="id_tipo_pago_2">Tipo de Pago 2</label>
-                                                            <select name="id_tipo_pago_2" id="id_tipo_pago_2" class="form-control w-50" >
+                                                            <label for="id_tipo_pago_2">Tipo Pago 2</label>
+                                                            <select name="id_tipo_pago_2" id="id_tipo_pago_2" class="form-control w-50">
                                                                 <option value="">Seleccionar</option>
                                                                 @foreach($tipo_pago as $t)
                                                                     <option value="{{$t->id_tipo_pago}}">{{$t->tipo_pago_nombre}}</option>
@@ -176,24 +267,21 @@
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12   contenedorPago2" style="display: none" >
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 contenedorPago2" style="display:none">
                                                         <div class="d-flex align-items-center justify-content-between mt-1 mb-1">
                                                             <label for="pago_cliente_2">Monto 2</label>
-                                                            <input type="text" readonly name="pago_cliente_2" id="pago_cliente_2"  class="form-control w-50 p-1"  onkeyup="validar_numeros(this.id)" >
+                                                            <input type="text" readonly name="pago_cliente_2" id="pago_cliente_2" class="form-control w-50 p-1" onkeyup="validar_numeros(this.id)">
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div class="col-lg-12 col-md-12 col-sm-12  d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                <label for="id_formas_pago">Formas de pago</label>
-                                                <select name="id_formas_pago" id="id_formas_pago" class="form-control w-50">
-                                                        <option value="1">CONTADO</option>
-                                                        <option value="2">CRÉDITO</option>
-                                                </select>
-                                            </div>
+                                            {{-- Botón cuotas (crédito) --}}
                                             <div class="col-lg-12 col-md-12 col-sm-12 mt-2">
-                                                <button class="btn btn-sm bg-primary text-white w-100" style="display: none" data-bs-toggle="modal" data-bs-target="#modal_cuotas" type="button" id="btn_credito_venta" ><i class="fa fa-list"></i> Lista de cuotas</button>
+                                                <button class="btn btn-sm bg-primary text-white w-100" style="display:none" data-bs-toggle="modal" data-bs-target="#modal_cuotas" type="button" id="btn_credito_venta"><i class="fa fa-list"></i> Lista de cuotas</button>
+                                            </div>
+                                            <div class="col-lg-12 col-md-12 col-sm-12 mt-1" id="info_credito_automatico" style="display:none">
+                                                <small class="text-info"><i class="fa fa-info-circle"></i> Se generará 1 cuota automática al vencimiento.</small>
                                             </div>
                                         </div>
                                     </div>
@@ -246,6 +334,28 @@
                                             </div>
                                             <div class="row mt-2 mb-2">
                                                 <p style="font-size: 11px;font-weight: 600" class="text-primary">* Para ventas que superen los S/ 700.00, se requerirá el registro de datos del cliente. *</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{-- Detalles de Transporte --}}
+                                    <div class="col-lg-12 col-md-12 col-sm-12 mt-3">
+                                        <hr>
+                                        <p class="linea_titulo_general d-flex align-items-center gap-2">
+                                            <i class="fa-solid fa-truck"></i> Detalles de Entrega <small class="text-muted fw-normal">(opcional)</small>
+                                        </p>
+                                        <div class="row mt-2">
+                                            <div class="col-lg-4 col-md-6 col-sm-12 mb-2 d-flex align-items-center justify-content-between">
+                                                <label for="metodo_envio" class="me-2">Método</label>
+                                                <select name="metodo_envio" id="metodo_envio" class="form-control w-50">
+                                                    <option value="">-- Sin envío --</option>
+                                                    <option value="Recojo en tienda">Recojo en tienda</option>
+                                                    <option value="Delivery">Delivery</option>
+                                                    <option value="Envío por transporte">Envío por transporte</option>
+                                                    <option value="Envío nacional">Envío nacional</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-8 col-md-12 col-sm-12 mb-2">
+                                                <input type="text" name="direccion_entrega" id="direccion_entrega" class="form-control" placeholder="Dirección de entrega (si aplica)">
                                             </div>
                                         </div>
                                     </div>
