@@ -424,3 +424,167 @@ a.bg-primary:hover, a.bg-primary:focus {
 .circulo_div{
     width: 15px;height: 15px;border-radius: 50px
 }
+
+/* =============================================
+   SIDEBAR / NAVBAR LATERAL
+   ============================================= */
+
+.bg-menu-theme,
+.layout-menu.bg-menu-theme,
+aside.layout-menu {
+    background: linear-gradient(180deg, #0a1628 0%, #0d1f45 100%) !important;
+    box-shadow: 4px 0 20px rgba(10, 22, 40, 0.4) !important;
+    color: rgba(255,255,255,0.78) !important;
+}
+
+/* Logo area */
+.layout-menu .app-brand.demo {
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1rem 0.75rem !important;
+}
+
+.layout-menu .app-brand.demo img {
+    border-radius: 12px;
+}
+
+/* Sombra interior del menú */
+.bg-menu-theme .menu-inner-shadow {
+    background: linear-gradient(#0d1b2a 5%, rgba(13, 27, 42, 0)) !important;
+}
+
+/* Texto base de todos los links del menú */
+.bg-menu-theme .menu-link,
+.bg-menu-theme .menu-link div,
+.bg-menu-theme .menu-link .menu-icon {
+    color: rgba(255, 255, 255, 0.78) !important;
+}
+.bg-menu-theme .menu-link div {
+    font-weight: 400 !important;
+}
+
+/* ── HOVER y módulo ABIERTO (mismo selector exacto que el tema) ── */
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item.open > .menu-link,
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item .menu-link:not(.active):hover,
+.layout-menu-hover.layout-menu-collapsed .bg-menu-theme .menu-inner .menu-item.open > .menu-link,
+.layout-menu-hover.layout-menu-collapsed .bg-menu-theme .menu-inner .menu-item .menu-link:not(.active):hover {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    font-weight: 400 !important;
+}
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item.open > .menu-link div,
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item .menu-link:not(.active):hover div,
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item.open > .menu-link .menu-icon,
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-item .menu-link:not(.active):hover .menu-icon {
+    color: #ffffff !important;
+}
+
+/* ── MÓDULO ACTIVO (item de primer nivel seleccionado) ── */
+.bg-menu-theme .menu-inner > .menu-item.active > .menu-link {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+}
+.bg-menu-theme .menu-inner > .menu-item.active > .menu-link div,
+.bg-menu-theme .menu-inner > .menu-item.active > .menu-link .menu-icon {
+    color: #ffffff !important;
+}
+.bg-menu-theme .menu-inner > .menu-item.active:before {
+    background: #ffffff !important;
+}
+
+/* ── SUBMENÚ ── */
+.bg-menu-theme .menu-sub {
+    background: rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Texto e ícono base del submenú */
+.bg-menu-theme .menu-sub > .menu-item > .menu-link div {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Punto del submenú (reposo) */
+.bg-menu-theme .menu-sub > .menu-item > .menu-link:before {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Hover submenú: sin fondo, sin cambio de peso */
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-sub .menu-item .menu-link:hover,
+.layout-menu-hover.layout-menu-collapsed .bg-menu-theme .menu-inner .menu-sub .menu-item .menu-link:hover {
+    background-color: transparent !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    font-weight: 400 !important;
+}
+html:not(.layout-menu-collapsed) .bg-menu-theme .menu-inner .menu-sub .menu-item .menu-link:hover div {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Opción activa: sin fondo, solo el punto destacado */
+.bg-menu-theme .menu-item.active > .menu-link:not(.menu-toggle) {
+    background-color: transparent !important;
+}
+.bg-menu-theme .menu-inner .menu-sub > .menu-item.active > .menu-link,
+.bg-menu-theme .menu-inner .menu-sub > .menu-item.active > .menu-link.menu-toggle {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+.bg-menu-theme .menu-inner .menu-sub > .menu-item.active > .menu-link div {
+    color: #ffffff !important;
+}
+
+/* Punto activo: blanco con borde translúcido */
+.bg-menu-theme .menu-sub > .menu-item.active > .menu-link:not(.menu-toggle):before {
+    background-color: #ffffff !important;
+    border: 3px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Línea inferior en opción activa */
+.bg-menu-theme .menu-inner .menu-sub > .menu-item.active > .menu-link {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.85) !important;
+    padding-bottom: 4px !important;
+}
+.bg-menu-theme .menu-inner .menu-sub > .menu-item.active .menu-icon {
+    color: #ffffff !important;
+}
+
+/* Toggle cerrar menú (móvil) */
+.layout-menu .layout-menu-toggle {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* =============================================
+   TOPBAR / HEADER
+   ============================================= */
+
+.layout-navbar.bg-navbar-theme,
+nav.layout-navbar {
+    background: #ffffff !important;
+    border-bottom: 3px solid #0b1892 !important;
+    box-shadow: 0 2px 12px rgba(11, 24, 146, 0.12) !important;
+}
+
+/* Nombre y rol del usuario en topbar */
+.layout-navbar .navbar-nav .nav-item small {
+    color: #2c3e50 !important;
+}
+.layout-navbar .navbar-nav .nav-item .fw-bold {
+    color: #0b1892 !important;
+}
+
+/* Icono hamburguesa en móvil */
+.layout-navbar .layout-menu-toggle .nav-link {
+    color: #0b1892 !important;
+}
+
+/* Dropdown del usuario */
+.layout-navbar .dropdown-menu {
+    border: 1px solid rgba(11, 24, 146, 0.15);
+    box-shadow: 0 8px 25px rgba(11, 24, 146, 0.15);
+}
+.layout-navbar .dropdown-item:hover {
+    background: #f0f2ff !important;
+    color: #0b1892 !important;
+}
+.layout-navbar .dropdown-item:hover i {
+    color: #0b1892 !important;
+}

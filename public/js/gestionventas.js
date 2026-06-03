@@ -394,6 +394,66 @@ function detalle_movimientos(id_movimiento){
 
 
 
+// ── Condición de pago ─────────────────────────────────────────────────────
+function actualizarCondicionPago(condicion) {
+    let hoy = new Date();
+    let fechaVenc = new Date(hoy);
+
+    if (condicion === 'contado') {
+        // Contado: muestra panel de pago inmediato
+        $('#id_formas_pago').val(1);
+        $('#contanierTableDebito').show();
+        $('#btn_credito_venta').hide();
+        $('#info_credito_automatico').hide();
+        fechaVenc = hoy;
+    } else if (condicion === 'contra_entrega') {
+        // Contra entrega: crédito, 1 cuota en fecha de hoy
+        $('#id_formas_pago').val(2);
+        $('#contanierTableDebito').hide();
+        $('#btn_credito_venta').hide();
+        $('#info_credito_automatico').show();
+        fechaVenc = hoy;
+    } else if (condicion === 'custom') {
+        // Crédito libre: abre modal de cuotas manualmente
+        $('#id_formas_pago').val(2);
+        $('#contanierTableDebito').hide();
+        $('#btn_credito_venta').show();
+        $('#info_credito_automatico').hide();
+    } else {
+        // Crédito con días predefinidos: auto-genera 1 cuota
+        let dias = parseInt(condicion);
+        fechaVenc.setDate(fechaVenc.getDate() + dias);
+        $('#id_formas_pago').val(2);
+        $('#contanierTableDebito').hide();
+        $('#btn_credito_venta').hide();
+        $('#info_credito_automatico').show();
+    }
+
+    // Actualizar fecha vencimiento
+    if (condicion !== 'custom') {
+        let y = fechaVenc.getFullYear();
+        let m = String(fechaVenc.getMonth() + 1).padStart(2, '0');
+        let d = String(fechaVenc.getDate()).padStart(2, '0');
+        $('#venta_fecha_vencimiento').val(y + '-' + m + '-' + d);
+    }
+}
+
+// Auto-genera cuotas cuando la condición es predefinida (no custom)
+function generarCuotasAutomaticas() {
+    let condicion = $('#venta_condicion_pago').val();
+    let total = parseFloat($('#calcular_monto_total_').val()) || 0;
+    let fechaVenc = $('#venta_fecha_vencimiento').val();
+
+    if (condicion !== 'contado' && condicion !== 'custom' && total > 0 && fechaVenc) {
+        cuotas_venta = [{
+            cuota: 1,
+            monto: total,
+            fecha_pago: new Date(fechaVenc + 'T00:00:00').toLocaleDateString(),
+        }];
+    }
+}
+// ── fin condición de pago ──────────────────────────────────────────────────
+
 let tipo_comprobante = document.getElementById('tipo_comprobante');
 if(tipo_comprobante && tipo_comprobante.addEventListener){
     tipo_comprobante.addEventListener('change',function (){
@@ -631,7 +691,7 @@ function buscar_producto_generar_ventas(id){
             datos.map(function(el,index){
                 body +=
                     `
-                        <a class="list-group-item list-group-item-action" style="cursor: pointer!important;" onclick="capturar_valores_ventas_productos(${el.id_pro},'${el.pro_nombre}','${el.id_tipo_afectacion}','${el.impuesto_bolsa}','${el.pro_precio_uni}','${el.pro_precio_uni_ma}',${el.pro_porcen_igv},${el.pro_stock},${el.id_medida},'${encodeURIComponent(el.pro_descripcion || '')}')" >${el.pro_nombre}</a>
+                        <a class="list-group-item list-group-item-action" style="cursor: pointer!important;" onclick="capturar_valores_ventas_productos(${el.id_pro},'${el.pro_nombre}','${el.id_tipo_afectacion}','${el.impuesto_bolsa}','${el.pro_precio_uni}','${el.pro_precio_uni_ma}',${el.pro_porcen_igv},${el.pro_stock},${el.id_medida},'${encodeURIComponent(el.pro_descripcion || '')}',${el.control_serie || 0})" >${el.pro_nombre} ${el.control_serie ? '<span class=\'badge bg-primary\'>Serie</span>' : ''}</a>
                     `
             })
         }else{
@@ -656,80 +716,111 @@ function buscar_producto_generar_ventas(id){
 }
 
 
-function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,precio_ma,porce_igv,stock,idmedida,descr = null){
+let _pendingProductoSerie = null;
 
-    // Verificar si la descripción es null o vacía, asignar valor predeterminado si es necesario
+function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,precio_ma,porce_igv,stock,idmedida,descr = null, control_serie = 0){
+
     descr = descr || '';
-
-    // Si necesitas decodificar los caracteres especiales en caso de que hayan sido codificados
     descr = decodeURIComponent(descr);
 
-    // $('#lista_productos_ventas').html(" ");
     $('#buscar_productos_ventas').val(" ");
     let conteo = 1;
 
-    if(ventas_prtoductos.length > 0){
-        for(let i = 0; i < ventas_prtoductos.length; i++){
-            if(ventas_prtoductos[i].id_pro == id){
-                conteo++;
-            }
+    for(let i = 0; i < ventas_prtoductos.length; i++){
+        if(ventas_prtoductos[i].id_pro == id){
+            conteo++;
         }
-
-        if(conteo == 1){
-            let obj = {
-                id_pro :id,
-                id_medida :idmedida,
-                nombre_producto :nombre,
-                id_tipo_afectacion :afectacion,
-                impuesto_bolsa :bolsa,
-                precio_venta :precio,
-                precio_mayor :precio_ma,
-                // precio_final: cantidad > 12 ? precio_ma :precio ,
-                cantidad : 1,
-                total : precio * 1,
-                porcentaje_igv : porce_igv,
-                stock_actual : stock,
-                descripcion : descr,
-            }
-            ventas_prtoductos.push(obj);
-            respuesta('Producto agregado.', 'success');
-            localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
-            dibujar_tabla_ventas_productos()
-        }else{
-            respuesta('No es posible ingresar un producto más de una vez.', 'error')
-        }
-    }else{
-        let obj = {
-            id_pro :id,
-            id_medida :idmedida,
-            nombre_producto :nombre,
-            id_tipo_afectacion :afectacion,
-            impuesto_bolsa :bolsa,
-            precio_venta :precio,
-            precio_mayor :precio_ma,
-            // precio_final: cantidad > 12 ? precio_ma :precio ,
-            cantidad : 1,
-            total : precio * 1,
-            porcentaje_igv : porce_igv,
-            stock_actual : stock,
-            descripcion : descr,
-        }
-        ventas_prtoductos.push(obj);
-        dibujar_tabla_ventas_productos()
-        localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
-
     }
 
+    if(conteo > 1){
+        respuesta('No es posible ingresar un producto más de una vez.', 'error');
+        return;
+    }
+
+    let obj = {
+        id_pro: id,
+        id_medida: idmedida,
+        nombre_producto: nombre,
+        id_tipo_afectacion: afectacion,
+        impuesto_bolsa: bolsa,
+        precio_venta: precio,
+        precio_mayor: precio_ma,
+        cantidad: 1,
+        total: precio * 1,
+        porcentaje_igv: porce_igv,
+        stock_actual: stock,
+        descripcion: descr,
+        control_serie: control_serie,
+        id_serie_producto: null,
+        numero_serie: null,
+    };
+
+    if(parseInt(control_serie) === 1){
+        _pendingProductoSerie = obj;
+        $('#serie_modal_producto_nombre').text(nombre);
+        $('#tbody_series_vehiculo').html('<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>');
+        $('#msg_sin_series').addClass('d-none');
+        $('#modal_series_vehiculo').modal('show');
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestionventas/buscar_series_producto",
+            data: { id_pro: id, "_token": $("meta[name='csrf-token']").attr("content") },
+            dataType: 'json',
+        }).done(function(r){
+            let series = r.result.data;
+            if(series.length > 0){
+                let body = '';
+                series.map(function(s){
+                    body += `<tr>
+                        <td><strong>${s.numero_serie}</strong></td>
+                        <td>${s.numero_motor || '---'}</td>
+                        <td>${s.color || '---'}</td>
+                        <td>${s.anio_fabricacion || '---'}</td>
+                        <td><button class="btn btn-sm btn-primary" onclick="seleccionar_serie(${s.id_serie_producto},'${s.numero_serie}')"><i class="fa fa-check"></i> Seleccionar</button></td>
+                    </tr>`;
+                });
+                $('#tbody_series_vehiculo').html(body);
+            } else {
+                $('#tbody_series_vehiculo').html('');
+                $('#msg_sin_series').removeClass('d-none');
+            }
+        });
+    } else {
+        ventas_prtoductos.push(obj);
+        respuesta('Producto agregado.', 'success');
+        localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
+        dibujar_tabla_ventas_productos();
+    }
+}
+
+function seleccionar_serie(id_serie_producto, numero_serie){
+    if(_pendingProductoSerie){
+        _pendingProductoSerie.id_serie_producto = id_serie_producto;
+        _pendingProductoSerie.numero_serie = numero_serie;
+        ventas_prtoductos.push(_pendingProductoSerie);
+        _pendingProductoSerie = null;
+        localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
+        dibujar_tabla_ventas_productos();
+        $('#modal_series_vehiculo').modal('hide');
+        respuesta('Producto con serie ' + numero_serie + ' agregado.', 'success');
+    }
 }
 function dibujar_tabla_ventas_productos(){
     let num = 1;
     let body = "";
     if(ventas_prtoductos.length > 0){
         ventas_prtoductos.map(function(el, index){
+            let serieInfo = '';
+            if(parseInt(el.control_serie) === 1 && el.numero_serie){
+                serieInfo = `<br><small class="badge bg-primary">Serie: ${el.numero_serie}</small>`;
+            }
+            let cantidadInput = parseInt(el.control_serie) === 1
+                ? `<input type="number" style="width: 90px;background: none" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="1" readonly>`
+                : `<input type="number" style="width: 90px;background: none" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="${el.cantidad}" onchange="guardar_cambios_venta_productos(${index},'${el.id_pro}',${el.precio_venta},${el.precio_mayor})" onkeyup="validar_numeros(this.id)">`;
             body+=
                 `
                      <tr>
-                        <td>${el.nombre_producto}</td>
+                        <td>${el.nombre_producto}${serieInfo}</td>
                         <td>
                             <textarea class="form-control" name="descripcionDatos_${index}" id="descripcionDatos_${index}" onchange="cambiarDescripcion(${index})" rows="4">${el.descripcion && el.descripcion != 'null' ? el.descripcion : ''}</textarea>
                         </td>
@@ -737,8 +828,8 @@ function dibujar_tabla_ventas_productos(){
                         <td>
                             <input type="text" style="width: 90px;" class=" outline-none form-control " onchange="cambiarPrecioVenta(${index})" onkeyup="validar_numeros(this.id)" id="precio_venta_${index}" value="${el.cantidad >= 12 ? el.precio_mayor : el.precio_venta}">
                         </td>
-                        <td><input type="number"  style="width: 90px;background: none" id="cantidad_producto${index}" class=" outline-none form-control "  name="cantidad_producto${index}" value="${el.cantidad}" onchange="guardar_cambios_venta_productos(${index},'${el.id_pro}',${el.precio_venta},${el.precio_mayor})" onkeyup="validar_numeros(this.id)"></td>
-                        <td><input type="text"  style="width: 90px;background: none" id="total_venta_producto_${index}" disabled class="border-none outline-none"  name="total_venta_producto_${index}" value="${el.total}"></td>
+                        <td>${cantidadInput}</td>
+                        <td><input type="text" style="width: 90px;background: none" id="total_venta_producto_${index}" disabled class="border-none outline-none" name="total_venta_producto_${index}" value="${el.total}"></td>
                         <td>
                             <a class="btn btn-sm text-white bg-danger" title="Eliminar" type="button" onclick="eliminar_productos_ventas(${index})"><i class="fa fa-trash"></i></a>
                         </td>
@@ -1191,11 +1282,13 @@ $("#formulario_generar_venta").on('submit', function(e){
             respuesta('El numero de documento debe tener 11 caracteres', 'error')
         }
     }
+    // Auto-generar cuotas para condiciones predefinidas
+    generarCuotasAutomaticas();
+
     let formulario = new FormData(this);
     formulario.append('datos' , JSON.stringify(ventas_prtoductos))
     formulario.append('calculo' , JSON.stringify(cal_datos_result))
     formulario.append('cuotas' , JSON.stringify(cuotas_venta))
-    // formulario.append('partir_pago' , JSON.stringify(partir_pago))
     if (valor){
         $.ajax({
             type: "POST",

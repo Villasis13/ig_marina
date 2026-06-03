@@ -4,11 +4,20 @@ if(btn_crear_productos && btn_crear_productos.addEventListener){
     btn_crear_productos.addEventListener('click',function (){
         limpiarCampos('formularioAgregarProductos')
         $('#estadoActionFuctionProductos').val(1);
-        $('#id_tipo_documento').val(4);
         $('#tipoAfectacion').val(2);
         $('#unidadMedida').val(58);
-        // $('#pro_porcen_igv_18').prop('checked', true);
+        $('#id_moneda').val(1);
+        $('#stock_minimo').val(0);
+        $('#stock_maximo').val(0);
+        $('#pro_precio_costo').val('');
+        $('#pro_valor_costo').val('');
+        $('#pro_costo_promedio').val('');
+        $('#pro_fecha_adquisicion').val('');
+        $('#pro_codigo_barra').val('');
+        $('#id_fa_selector').val('');
+        filtrarCategorias(''); // muestra todas las categorías
         $('#imagen_producto').attr('src', ruta_global+'sin-fotografia.png');
+        $('#ids_proveedores option').prop('selected', false);
     });
 }
 
@@ -64,6 +73,24 @@ $("#formularioAgregarProductos").on('submit', function(e){
     }
 });
 
+// Cascade: filtra categorías según la línea (familia) seleccionada
+function filtrarCategorias(idFa) {
+    var cats = typeof _categorias_data !== 'undefined' ? _categorias_data : [];
+    var select = document.getElementById('id_ca');
+    var valorActual = select.value;
+    select.innerHTML = '<option value="">Seleccionar categoría</option>';
+    cats.forEach(function(c) {
+        if (!idFa || String(c.id_fa) === String(idFa)) {
+            var opt = document.createElement('option');
+            opt.value = c.id_ca;
+            opt.text = c.ca_nombre;
+            opt.dataset.fa = c.id_fa;
+            if (String(c.id_ca) === String(valorActual)) opt.selected = true;
+            select.appendChild(opt);
+        }
+    });
+}
+
 function modificarProductos(id){
     $.ajax({
         url:ruta_global+"logistica/listar_datos_productos",
@@ -74,31 +101,45 @@ function modificarProductos(id){
         },
         dataType: 'json',
     }).done(function(r){
-        let resul = r.result.code
+        let resul = r.result.code;
         $('#id_pro').val(id);
         $('#estadoActionFuctionProductos').val(2);
-        $('#id_ca').val(resul.id_ca);
         $('#pro_nombre').val(resul.pro_nombre);
         $('#pro_codigo').val(resul.pro_codigo);
+        $('#pro_codigo_barra').val(resul.pro_codigo_barra || '');
         $('#pro_descripcion').val(resul.pro_descripcion);
         $('#pro_presentacion').val(resul.pro_presentacion);
         $('#pro_medida').val(resul.pro_medida);
         $('#pro_precio_uni').val(resul.pro_precio_uni);
         $('#pro_precio_uni_ma').val(resul.pro_precio_uni_ma);
+        $('#pro_precio_costo').val(resul.pro_precio_costo || '0.00');
+        $('#pro_valor_costo').val(resul.pro_valor_costo || '0.00');
+        $('#pro_costo_promedio').val(resul.pro_costo_promedio || '0.00');
+        $('#pro_fecha_adquisicion').val(resul.pro_fecha_adquisicion || '');
         $('#tipoAfectacion').val(resul.id_tipo_afectacion);
         $('#unidadMedida').val(resul.id_medida);
+        $('#id_moneda').val(resul.id_moneda || 1);
         $('#control_serie').prop('checked', resul.control_serie == 1);
         $('#control_lote').prop('checked', resul.control_lote == 1);
-        if (resul.impuesto_bolsa == 1){
-            $('#impuesto_bolsa').prop('checked', true);
-        }else{
-            $('#impuesto_bolsa').prop('checked', false);
+        $('#stock_minimo').val(resul.stock_minimo || 0);
+        $('#stock_maximo').val(resul.stock_maximo || 0);
+        $('#impuesto_bolsa').prop('checked', resul.impuesto_bolsa == 1);
+
+        // Cascade: detectar la familia de la categoría y preseleccionar línea
+        var cats = typeof _categorias_data !== 'undefined' ? _categorias_data : [];
+        var catEncontrada = cats.find(c => String(c.id_ca) === String(resul.id_ca));
+        if (catEncontrada) {
+            $('#id_fa_selector').val(catEncontrada.id_fa);
+            filtrarCategorias(catEncontrada.id_fa);
         }
-        // if(resul.pro_porcen_igv == '0.10'){
-        //     $('#pro_porcen_igv_10').prop('checked', true);
-        // }else{
-        //     $('#pro_porcen_igv_18').prop('checked', true);
-        // }
+        $('#id_ca').val(resul.id_ca);
+
+        // Proveedores asociados
+        let provIds = r.result.proveedores_ids || [];
+        $('#ids_proveedores option').each(function(){
+            $(this).prop('selected', provIds.includes(parseInt($(this).val())));
+        });
+
         if(resul.pro_foto){
             $('#imagen_producto').attr('src', ruta_global+resul.pro_foto);
         }else{

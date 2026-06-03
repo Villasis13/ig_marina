@@ -1,3 +1,39 @@
+// ── Ubigeo cascade ────────────────────────────────────────────────────────
+function ubigeo_cargar_provincias(dept_id, prov_select_id, dist_select_id) {
+    $('#' + prov_select_id).html('<option value="">Cargando...</option>');
+    $('#' + dist_select_id).html('<option value="">Distrito</option>');
+    if (!dept_id) { $('#' + prov_select_id).html('<option value="">Provincia</option>'); return; }
+    $.get(ruta_global + 'Gestion/ubigeo/provincias', { dept_id: dept_id }, function(data) {
+        let opts = '<option value="">Provincia</option>';
+        data.forEach(p => opts += `<option value="${p.id}">${p.name}</option>`);
+        $('#' + prov_select_id).html(opts);
+    });
+}
+function ubigeo_cargar_distritos(prov_id, dist_select_id) {
+    $('#' + dist_select_id).html('<option value="">Cargando...</option>');
+    if (!prov_id) { $('#' + dist_select_id).html('<option value="">Distrito</option>'); return; }
+    $.get(ruta_global + 'Gestion/ubigeo/distritos', { prov_id: prov_id }, function(data) {
+        let opts = '<option value="">Distrito</option>';
+        data.forEach(d => opts += `<option value="${d.id}">${d.name}</option>`);
+        $('#' + dist_select_id).html(opts);
+    });
+}
+function ubigeo_preseleccionar(dept_id, prov_id, dist_id, dept_sel, prov_sel, dist_sel) {
+    if (!dept_id) return;
+    $('#' + dept_sel).val(dept_id);
+    $.get(ruta_global + 'Gestion/ubigeo/provincias', { dept_id: dept_id }, function(data) {
+        let opts = '<option value="">Provincia</option>';
+        data.forEach(p => opts += `<option value="${p.id}">${p.name}</option>`);
+        $('#' + prov_sel).html(opts).val(prov_id);
+        $.get(ruta_global + 'Gestion/ubigeo/distritos', { prov_id: prov_id }, function(data2) {
+            let opts2 = '<option value="">Distrito</option>';
+            data2.forEach(d => opts2 += `<option value="${d.id}">${d.name}</option>`);
+            $('#' + dist_sel).html(opts2).val(dist_id);
+        });
+    });
+}
+// ── fin ubigeo ─────────────────────────────────────────────────────────────
+
 let btn_crear_proveedor = document.getElementById('btn_crear_proveedor');
 if(btn_crear_proveedor && btn_crear_proveedor.addEventListener){
     btn_crear_proveedor.addEventListener('click',function (){
@@ -115,8 +151,21 @@ function modificarProveedor(id){
         $('#proveedores_nombre').val(datos.proveedores_nombre);
         $('#proveedores_numero_documento').val(datos.proveedores_numero_documento);
         $('#proveedores_direccion').val(datos.proveedores_direccion);
+        $('#proveedores_tipo_persona').val(datos.proveedores_tipo_persona || 'juridica');
+        $('#proveedores_sexo').val(datos.proveedores_sexo || '');
         $('#proveedores_telefono').val(datos.proveedores_telefono);
         $('#proveedores_correo').val(datos.proveedores_correo);
+        $('#proveedores_nombre_contacto').val(datos.proveedores_nombre_contacto || '');
+        $('#proveedores_cargo').val(datos.proveedores_cargo || '');
+        // Ubigeo
+        if (datos.proveedores_ubigeo) {
+            let dist_id = datos.proveedores_ubigeo;
+            let dept_id = dist_id.substring(0, 2);
+            let prov_id = dist_id.substring(0, 4);
+            ubigeo_preseleccionar(dept_id, prov_id, dist_id, 'prov_dept', 'prov_prov', 'prov_dist');
+        } else {
+            $('#prov_dept').val(''); $('#prov_prov').html('<option value="">Provincia</option>'); $('#prov_dist').html('<option value="">Distrito</option>');
+        }
 
     });
 }
@@ -309,6 +358,7 @@ function modificarCliente(idCliente){
                 if (datos){
                     $('#estadoActionFuction').val(2);
                     $('#id_clientes').val(datos.id_clientes);
+                    $('#cliente_tipo_persona').val(datos.cliente_tipo_persona || 'natural');
                     $('#id_tipo_documento').val(datos.id_tipo_documento);
                     $('#cliente_numero').val(datos.cliente_numero);
                     if (datos.id_tipo_documento == 4){
@@ -316,7 +366,18 @@ function modificarCliente(idCliente){
                     }else{
                         $('#cliente_nombre_general').val(datos.cliente_nombre);
                     }
+                    $('#cliente_sexo').val(datos.cliente_sexo || '');
+                    $('#cliente_atencion').val(datos.cliente_atencion || '');
                     $('#cliente_direccion').val(datos.cliente_direccion);
+                    $('#cliente_telefono').val(datos.cliente_telefono || '');
+                    $('#cliente_correo').val(datos.cliente_correo || '');
+                    // Ubigeo (viene en r.result.ubigeo)
+                    let ub = r.result.ubigeo;
+                    if (ub && ub.dept_id) {
+                        ubigeo_preseleccionar(ub.dept_id, ub.prov_id, ub.dist_id, 'cli_dept', 'cli_prov', 'cli_dist');
+                    } else {
+                        $('#cli_dept').val(''); $('#cli_prov').html('<option value="">Provincia</option>'); $('#cli_dist').html('<option value="">Distrito</option>');
+                    }
                 }
             }else{
 
