@@ -208,10 +208,14 @@ function listar_productos_orden_compra(id){
             let body = "";
             if(datos.length > 0 ){
                 datos.map(function(el,index){
+                    let familiaInfo = el.fa_nombre
+                        ? ` - <small class="text-secondary">${el.familia_codigo||''} ${el.fa_nombre}</small>`
+                        : '';
                     body +=
-                        `
-                            <a class="list-group-item list-group-item-action" style="cursor:pointer!important;"  onclick="capturar_datos_orden_compra(${el.id_pro},'${el.pro_nombre}',${el.control_serie||0},${el.control_lote||0})" >${el.pro_nombre}</a>
-                            `
+                        `<a class="list-group-item list-group-item-action" style="cursor:pointer!important;"
+                            onclick="capturar_datos_orden_compra(${el.id_pro},'${el.pro_nombre}','${el.pro_codigo||''}','${el.fa_nombre||''}','${el.familia_codigo||''}',${el.control_serie||0},${el.control_lote||0})">
+                            ${el.pro_nombre} - <small class="text-muted">${el.pro_codigo||''}</small>${familiaInfo}
+                        </a>`
                 })
             }else{
                 body +=
@@ -233,8 +237,9 @@ function listar_productos_orden_compra(id){
 
 }
 
-function capturar_datos_orden_compra(id, producto, control_serie, control_lote){
-    $('#productos_orden_compra').val(" ");
+function capturar_datos_orden_compra(id, producto, codigo, fa_nombre, familia_codigo, control_serie, control_lote){
+    $('#productos_orden_compra').val('');
+    $('#listar_productos_orden_compra').html('');
     let yaExiste = array_orden_compra.some(p => p.id_pro == id);
     if (yaExiste) {
         respuesta('No es posible ingresar un recurso más de una vez.', 'error');
@@ -243,6 +248,9 @@ function capturar_datos_orden_compra(id, producto, control_serie, control_lote){
     let obj = {
         id_pro: id,
         producto_nombre: producto,
+        producto_codigo: codigo || '',
+        producto_familia: fa_nombre || '',
+        producto_familia_codigo: familia_codigo || '',
         producto_precio_unit: 0,
         cantidad: (control_serie || control_lote) ? 0 : 1,
         precio_total: 0,
@@ -263,6 +271,7 @@ function dibujar_tabla_productos_orden_compra(){
                     <tr class="encabezado_tabla_color">
                         <th>#</th>
                         <th>Producto</th>
+                        <th>Familia</th>
                         <th>U. Medida</th>
                         <th>Cantidad</th>
                         <th>Precio de Compra</th>
@@ -282,7 +291,8 @@ function dibujar_tabla_productos_orden_compra(){
             body += `
                 <tr>
                     <td>${num}</td>
-                    <td>${el.producto_nombre}</td>
+                    <td>${el.producto_nombre}<br><small class="text-muted">${el.producto_codigo||''}</small></td>
+                    <td><small>${el.producto_familia ? `${el.producto_familia_codigo||''} - ${el.producto_familia}` : '-'}</small></td>
                     <td>UNIDAD (BIENES)</td>
                     <td>${cantidadInput}</td>
                     <td><input type="text" onkeyup="validar_numeros(this.id)" id="precio_compra_${index}" class="form-control w-px-100 border-none outline-none" onchange="calcular_precio_total_recurso_orden_compra(${index})" name="precio_compra_${index}" value="${el.producto_precio_unit}"></td>
@@ -680,4 +690,47 @@ function eliminar_recurso_orden_compra(index){
     localStorage.setItem('productos_orden_compra', JSON.stringify(array_orden_compra));
 
 }
+
+// ── IMPORTAR PRODUCTOS DESDE EXCEL ────────────────────────────────────────────
+$("#formularioImportarExcel").on('submit', function (e) {
+    e.preventDefault();
+    var boton = 'btnImportarExcel';
+    var archivo = $('#archivo_excel').val();
+    if (!archivo) {
+        respuesta('Debe seleccionar un archivo Excel.', 'error');
+        return;
+    }
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "logistica/importar_productos_excel",
+        data: new FormData(this),
+        contentType: false,
+        cache: false,
+        processData: false,
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, '<i class="fa-solid fa-spinner fa-spin"></i> Importando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 2000);
+                    break;
+                case 2:
+                    respuesta('Error: ' + r.result.message, 'error');
+                    break;
+                default:
+                    respuesta('¡Algo catastrófico ha ocurrido!', 'error');
+                    break;
+            }
+            cambiar_estado_boton(boton, '<i class="fa-solid fa-upload"></i> Importar', false);
+        },
+        error: function (xhr) {
+            respuesta('Error inesperado: ' + xhr.statusText, 'error');
+            cambiar_estado_boton(boton, '<i class="fa-solid fa-upload"></i> Importar', false);
+        }
+    });
+});
+// ── fin IMPORTAR EXCEL ────────────────────────────────────────────────────────
 

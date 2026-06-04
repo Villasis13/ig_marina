@@ -371,6 +371,7 @@ function modificarCliente(idCliente){
                     $('#cliente_direccion').val(datos.cliente_direccion);
                     $('#cliente_telefono').val(datos.cliente_telefono || '');
                     $('#cliente_correo').val(datos.cliente_correo || '');
+                    $('#cliente_contribuyente').val(datos.cliente_contribuyente || '');
                     // Ubigeo (viene en r.result.ubigeo)
                     let ub = r.result.ubigeo;
                     if (ub && ub.dept_id) {
@@ -476,3 +477,488 @@ function eliminar_cliente(id){
         }
     });
 }
+
+// ── LÍNEAS ────────────────────────────────────────────────────────────────────
+let btn_crear_linea = document.getElementById('btn_crear_linea');
+if (btn_crear_linea && btn_crear_linea.addEventListener) {
+    btn_crear_linea.addEventListener('click', function () {
+        limpiarCampos('formularioLinea');
+        $('#estadoActionFuctionLinea').val(1);
+    });
+}
+
+$("#formularioLinea").on('submit', function (e) {
+    e.preventDefault();
+    var valor = true;
+    var boton = 'btnSaveLinea';
+    var linea_codigo = $('#linea_codigo').val();
+    var linea_descripcion = $('#linea_descripcion').val();
+    valor = validar_campo_vacio('linea_codigo', linea_codigo, valor);
+    valor = validar_campo_vacio('linea_descripcion', linea_descripcion, valor);
+    if (valor) {
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestion/guardar_linea",
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function () {
+                cambiar_estado_boton(boton, 'Guardando...', true);
+            },
+            success: function (r) {
+                switch (r.result.code) {
+                    case 1:
+                        respuesta(r.result.message, 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                        break;
+                    case 2: respuesta(r.result.message, 'error'); break;
+                    case 3: respuesta(r.result.message, 'error'); break;
+                    default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+                }
+                cambiar_estado_boton(boton, "Guardar registro", false);
+            }
+        });
+    }
+});
+
+function modificarLinea(id) {
+    $.ajax({
+        url: ruta_global + "Gestion/listar_datos_linea",
+        method: 'post',
+        data: {
+            id_linea: id,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        let datos = r.result.code;
+        $('#estadoActionFuctionLinea').val(2);
+        $('#id_linea').val(datos.id_linea);
+        $('#linea_codigo').val(datos.linea_codigo);
+        $('#linea_descripcion').val(datos.linea_descripcion);
+        $('#linea_tipo').val(datos.linea_tipo || '');
+    });
+}
+
+function eliminar_linea(id) {
+    var boton = "btnEliminarLinea_" + id;
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "Gestion/guardar_linea",
+        data: {
+            id_linea: id,
+            estadoActionFuctionLinea: 3,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, 'Eliminando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 1000);
+                    break;
+                case 2: respuesta(r.result.message, 'error'); break;
+                case 3: respuesta(r.result.message, 'error'); break;
+                default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+            }
+            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        }
+    });
+}
+// ── fin LÍNEAS ────────────────────────────────────────────────────────────────
+
+// ── CLASIFICADORES ────────────────────────────────────────────────────────────
+let btn_crear_clasificador = document.getElementById('btn_crear_clasificador');
+if (btn_crear_clasificador && btn_crear_clasificador.addEventListener) {
+    btn_crear_clasificador.addEventListener('click', function () {
+        limpiarCampos('formularioClasificador');
+        $('#estadoActionFuctionClasificador').val(1);
+    });
+}
+
+$("#formularioClasificador").on('submit', function (e) {
+    e.preventDefault();
+    var valor = true;
+    var boton = 'btnSaveClasificador';
+    var clasificador_codigo = $('#clasificador_codigo').val();
+    var clasificador_nombre = $('#clasificador_nombre').val();
+    valor = validar_campo_vacio('clasificador_codigo', clasificador_codigo, valor);
+    valor = validar_campo_vacio('clasificador_nombre', clasificador_nombre, valor);
+    if (valor) {
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestion/guardar_clasificador",
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function () {
+                cambiar_estado_boton(boton, 'Guardando...', true);
+            },
+            success: function (r) {
+                switch (r.result.code) {
+                    case 1:
+                        respuesta(r.result.message, 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                        break;
+                    case 2: respuesta(r.result.message, 'error'); break;
+                    case 3: respuesta(r.result.message, 'error'); break;
+                    default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+                }
+                cambiar_estado_boton(boton, "Guardar registro", false);
+            }
+        });
+    }
+});
+
+function modificarClasificador(id) {
+    $.ajax({
+        url: ruta_global + "Gestion/listar_datos_clasificador",
+        method: 'post',
+        data: {
+            id_clasificador: id,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        let datos = r.result.code;
+        $('#estadoActionFuctionClasificador').val(2);
+        $('#id_clasificador').val(datos.id_clasificador);
+        $('#clasificador_codigo').val(datos.clasificador_codigo);
+        $('#clasificador_nombre').val(datos.clasificador_nombre);
+    });
+}
+
+function eliminar_clasificador(id) {
+    var boton = "btnEliminarClasificador_" + id;
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "Gestion/guardar_clasificador",
+        data: {
+            id_clasificador: id,
+            estadoActionFuctionClasificador: 3,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, 'Eliminando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 1000);
+                    break;
+                case 2: respuesta(r.result.message, 'error'); break;
+                case 3: respuesta(r.result.message, 'error'); break;
+                default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+            }
+            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        }
+    });
+}
+// ── fin CLASIFICADORES ────────────────────────────────────────────────────────
+
+// ── ALMACENES ─────────────────────────────────────────────────────────────────
+let btn_crear_almacen = document.getElementById('btn_crear_almacen');
+if (btn_crear_almacen && btn_crear_almacen.addEventListener) {
+    btn_crear_almacen.addEventListener('click', function () {
+        limpiarCampos('formularioAlmacen');
+        $('#estadoActionFuctionAlmacen').val(1);
+        $('#almacen_ap').prop('checked', false);
+    });
+}
+
+$("#formularioAlmacen").on('submit', function (e) {
+    e.preventDefault();
+    var valor = true;
+    var boton = 'btnSaveAlmacen';
+    var almacen_codigo = $('#almacen_codigo').val();
+    var almacen_nombre = $('#almacen_nombre').val();
+    valor = validar_campo_vacio('almacen_codigo', almacen_codigo, valor);
+    valor = validar_campo_vacio('almacen_nombre', almacen_nombre, valor);
+    if (valor) {
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestion/guardar_almacen",
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function () {
+                cambiar_estado_boton(boton, 'Guardando...', true);
+            },
+            success: function (r) {
+                switch (r.result.code) {
+                    case 1:
+                        respuesta(r.result.message, 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                        break;
+                    case 2: respuesta(r.result.message, 'error'); break;
+                    case 3: respuesta(r.result.message, 'error'); break;
+                    default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+                }
+                cambiar_estado_boton(boton, "Guardar registro", false);
+            }
+        });
+    }
+});
+
+function modificarAlmacen(id) {
+    $.ajax({
+        url: ruta_global + "Gestion/listar_datos_almacen",
+        method: 'post',
+        data: {
+            id_almacen: id,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        let datos = r.result.code;
+        $('#estadoActionFuctionAlmacen').val(2);
+        $('#id_almacen').val(datos.id_almacen);
+        $('#almacen_codigo').val(datos.almacen_codigo || '');
+        $('#almacen_nombre').val(datos.almacen_nombre);
+        $('#almacen_sunat').val(datos.almacen_sunat || '');
+        $('#almacen_ap').prop('checked', datos.almacen_ap == 1);
+    });
+}
+
+function eliminar_almacen(id) {
+    var boton = "btnEliminarAlmacen_" + id;
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "Gestion/guardar_almacen",
+        data: {
+            id_almacen: id,
+            estadoActionFuctionAlmacen: 3,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, 'Eliminando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 1000);
+                    break;
+                case 2: respuesta(r.result.message, 'error'); break;
+                case 3: respuesta(r.result.message, 'error'); break;
+                default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+            }
+            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        }
+    });
+}
+// ── fin ALMACENES ─────────────────────────────────────────────────────────────
+
+// ── OPERACIONES ───────────────────────────────────────────────────────────────
+let btn_crear_operacion = document.getElementById('btn_crear_operacion');
+if (btn_crear_operacion && btn_crear_operacion.addEventListener) {
+    btn_crear_operacion.addEventListener('click', function () {
+        limpiarCampos('formularioOperacion');
+        $('#estadoActionFuctionOperacion').val(1);
+        $('#operacion_operacion').val('');
+        $('#operacion_stock').prop('checked', false);
+        $('#operacion_compra').prop('checked', false);
+        $('#operacion_promediar').prop('checked', false);
+    });
+}
+
+$("#formularioOperacion").on('submit', function (e) {
+    e.preventDefault();
+    var valor = true;
+    var boton = 'btnSaveOperacion';
+    valor = validar_campo_vacio('operacion_tipo', $('#operacion_tipo').val(), valor);
+    valor = validar_campo_vacio('operacion_descripcion', $('#operacion_descripcion').val(), valor);
+    valor = validar_campo_vacio('operacion_operacion', $('#operacion_operacion').val(), valor);
+    if (valor) {
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestion/guardar_operacion",
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function () {
+                cambiar_estado_boton(boton, 'Guardando...', true);
+            },
+            success: function (r) {
+                switch (r.result.code) {
+                    case 1:
+                        respuesta(r.result.message, 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                        break;
+                    case 2: respuesta(r.result.message, 'error'); break;
+                    case 3: respuesta(r.result.message, 'error'); break;
+                    default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+                }
+                cambiar_estado_boton(boton, "Guardar registro", false);
+            }
+        });
+    }
+});
+
+function modificarOperacion(id) {
+    $.ajax({
+        url: ruta_global + "Gestion/listar_datos_operacion",
+        method: 'post',
+        data: {
+            id_operacion: id,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        let datos = r.result.code;
+        $('#estadoActionFuctionOperacion').val(2);
+        $('#id_operacion').val(datos.id_operacion);
+        $('#operacion_tipo').val(datos.operacion_tipo);
+        $('#operacion_descripcion').val(datos.operacion_descripcion);
+        $('#operacion_operacion').val(datos.operacion_operacion);
+        $('#operacion_stock').prop('checked', datos.operacion_stock == 1);
+        $('#operacion_compra').prop('checked', datos.operacion_compra == 1);
+        $('#operacion_promediar').prop('checked', datos.operacion_promediar == 1);
+    });
+}
+
+function eliminar_operacion(id) {
+    var boton = "btnEliminarOperacion_" + id;
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "Gestion/guardar_operacion",
+        data: {
+            id_operacion: id,
+            estadoActionFuctionOperacion: 3,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, 'Eliminando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 1000);
+                    break;
+                case 2: respuesta(r.result.message, 'error'); break;
+                case 3: respuesta(r.result.message, 'error'); break;
+                default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+            }
+            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        }
+    });
+}
+// ── fin OPERACIONES ───────────────────────────────────────────────────────────
+
+// ── UNIDAD DE MANEJO ──────────────────────────────────────────────────────────
+function um_mostrar_abreviatura(sel) {
+    var abr = $(sel).find('option:selected').data('abr') || '—';
+    $('#um_abreviatura').text(abr);
+}
+
+let btn_crear_um = document.getElementById('btn_crear_um');
+if (btn_crear_um && btn_crear_um.addEventListener) {
+    btn_crear_um.addEventListener('click', function () {
+        limpiarCampos('formularioUM');
+        $('#estadoActionFuctionUM').val(1);
+        $('#um_id_medida').val('');
+        $('#um_abreviatura').text('—');
+    });
+}
+
+$("#formularioUM").on('submit', function (e) {
+    e.preventDefault();
+    var valor = true;
+    var boton = 'btnSaveUM';
+    valor = validar_campo_vacio('um_codigo', $('#um_codigo').val(), valor);
+    valor = validar_campo_vacio('um_id_medida', $('#um_id_medida').val(), valor);
+    if (valor) {
+        $.ajax({
+            type: "POST",
+            url: ruta_global + "Gestion/guardar_unidad_manejo",
+            data: new FormData(this),
+            contentType: false,
+            cache: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function () {
+                cambiar_estado_boton(boton, 'Guardando...', true);
+            },
+            success: function (r) {
+                switch (r.result.code) {
+                    case 1:
+                        respuesta(r.result.message, 'success');
+                        setTimeout(function () { location.reload(); }, 1000);
+                        break;
+                    case 2: respuesta(r.result.message, 'error'); break;
+                    case 3: respuesta(r.result.message, 'error'); break;
+                    default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+                }
+                cambiar_estado_boton(boton, "Guardar registro", false);
+            }
+        });
+    }
+});
+
+function modificarUM(id) {
+    $.ajax({
+        url: ruta_global + "Gestion/listar_datos_unidad_manejo",
+        method: 'post',
+        data: {
+            id_unidad_manejo: id,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        let datos = r.result.code;
+        $('#estadoActionFuctionUM').val(2);
+        $('#id_unidad_manejo').val(datos.id_unidad_manejo);
+        $('#um_codigo').val(datos.unidad_manejo_codigo);
+        $('#um_sunat').val(datos.unidad_manejo_sunat || '');
+        $('#um_id_medida').val(datos.id_medida);
+        // actualizar abreviatura
+        var abr = $('#um_id_medida option:selected').data('abr') || '—';
+        $('#um_abreviatura').text(abr);
+    });
+}
+
+function eliminar_um(id) {
+    var boton = "btnEliminarUM_" + id;
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "Gestion/guardar_unidad_manejo",
+        data: {
+            id_unidad_manejo: id,
+            estadoActionFuctionUM: 3,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+        beforeSend: function () {
+            cambiar_estado_boton(boton, 'Eliminando...', true);
+        },
+        success: function (r) {
+            switch (r.result.code) {
+                case 1:
+                    respuesta(r.result.message, 'success');
+                    setTimeout(function () { location.reload(); }, 1000);
+                    break;
+                case 2: respuesta(r.result.message, 'error'); break;
+                case 3: respuesta(r.result.message, 'error'); break;
+                default: respuesta('¡Algo catastrofico ha ocurrido!', 'error'); break;
+            }
+            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        }
+    });
+}
+// ── fin UNIDAD DE MANEJO ──────────────────────────────────────────────────────

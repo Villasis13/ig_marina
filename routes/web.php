@@ -107,6 +107,26 @@ Route::prefix('Gestion')->middleware('auth')->group(function () {
     route::post('/listarCliente',[GestionController::class ,'listarCliente'])->name('Gestion.listarCliente')->middleware('can:listarCliente');
     route::get('/ubigeo/provincias',[GestionController::class ,'ubigeo_provincias'])->name('Gestion.ubigeo_provincias');
     route::get('/ubigeo/distritos',[GestionController::class ,'ubigeo_distritos'])->name('Gestion.ubigeo_distritos');
+
+    route::get('/lineas',[GestionController::class ,'lineas'])->name('Gestion.lineas')->middleware('can:lineas');
+    route::post('/guardar_linea',[GestionController::class ,'guardar_linea'])->name('Gestion.guardar_linea')->middleware('can:guardar_linea');
+    route::post('/listar_datos_linea',[GestionController::class ,'listar_datos_linea'])->name('Gestion.listar_datos_linea')->middleware('can:listar_datos_linea');
+
+    route::get('/clasificadores',[GestionController::class ,'clasificadores'])->name('Gestion.clasificadores')->middleware('can:clasificadores');
+    route::post('/guardar_clasificador',[GestionController::class ,'guardar_clasificador'])->name('Gestion.guardar_clasificador')->middleware('can:guardar_clasificador');
+    route::post('/listar_datos_clasificador',[GestionController::class ,'listar_datos_clasificador'])->name('Gestion.listar_datos_clasificador')->middleware('can:listar_datos_clasificador');
+
+    route::get('/almacenes',[GestionController::class ,'almacenes'])->name('Gestion.almacenes')->middleware('can:almacenes');
+    route::post('/guardar_almacen',[GestionController::class ,'guardar_almacen'])->name('Gestion.guardar_almacen')->middleware('can:guardar_almacen');
+    route::post('/listar_datos_almacen',[GestionController::class ,'listar_datos_almacen'])->name('Gestion.listar_datos_almacen')->middleware('can:listar_datos_almacen');
+
+    route::get('/operaciones',[GestionController::class ,'operaciones'])->name('Gestion.operaciones')->middleware('can:operaciones');
+    route::post('/guardar_operacion',[GestionController::class ,'guardar_operacion'])->name('Gestion.guardar_operacion')->middleware('can:guardar_operacion');
+    route::post('/listar_datos_operacion',[GestionController::class ,'listar_datos_operacion'])->name('Gestion.listar_datos_operacion')->middleware('can:listar_datos_operacion');
+
+    route::get('/unidad_manejo',[GestionController::class ,'unidad_manejo'])->name('Gestion.unidad_manejo')->middleware('can:unidad_manejo');
+    route::post('/guardar_unidad_manejo',[GestionController::class ,'guardar_unidad_manejo'])->name('Gestion.guardar_unidad_manejo')->middleware('can:guardar_unidad_manejo');
+    route::post('/listar_datos_unidad_manejo',[GestionController::class ,'listar_datos_unidad_manejo'])->name('Gestion.listar_datos_unidad_manejo')->middleware('can:listar_datos_unidad_manejo');
 });
 
 
@@ -119,6 +139,7 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::get('/compras_pdf',[LogisticaController::class ,'compras_pdf'])->name('logistica.compras_pdf')->middleware('can:compras_pdf');
 
     route::post('/guardar_producto',[LogisticaController::class ,'guardar_producto'])->name('logistica.guardar_producto')->middleware('can:guardar_producto');
+    route::post('/importar_productos_excel',[LogisticaController::class ,'importar_productos_excel'])->name('logistica.importar_productos_excel');
     route::post('/crear_orden_compra',[LogisticaController::class ,'crear_orden_compra'])->name('logistica.crear_orden_compra')->middleware('can:crear_orden_compra');
     route::post('/eliminar_orden_compra',[LogisticaController::class ,'eliminar_orden_compra'])->name('logistica.eliminar_orden_compra')->middleware('can:eliminar_orden_compra');
 

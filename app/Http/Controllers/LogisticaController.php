@@ -332,6 +332,86 @@ class LogisticaController extends Controller
     }
 
 
+    public function importar_productos_excel(Request $request)
+    {
+        try {
+            if (!$request->hasFile('archivo_excel')) {
+                return json_encode(['result' => ['code' => 2, 'message' => 'No se recibió ningún archivo.']]);
+            }
+
+            $archivo     = $request->file('archivo_excel');
+            $spreadsheet = IOFactory::load($archivo->getRealPath());
+            $hoja        = $spreadsheet->getActiveSheet();
+
+            $actualizados = 0;
+            $no_encontrados = 0;
+            $errores = [];
+            $fila    = 4; // registros desde fila 4
+
+            while (true) {
+                $codigo        = trim((string) $hoja->getCell('A' . $fila)->getValue());
+                $nombre        = trim((string) $hoja->getCell('C' . $fila)->getValue());
+                $fa_codigo_val = trim((string) $hoja->getCell('F' . $fila)->getValue());
+
+                // fin de datos si A y C están vacías
+                if ($codigo === '' && $nombre === '') break;
+
+                // fila incompleta
+                if ($codigo === '' || $nombre === '') {
+                    $errores[] = "Fila $fila: código o nombre vacío, se omitió.";
+                    $fila++;
+                    continue;
+                }
+
+                // buscar id_fa a partir del código de familia (celda F)
+                $id_fa = null;
+                if ($fa_codigo_val !== '') {
+                    $familia = DB::table('familias')
+                        ->where('fa_codigo', $fa_codigo_val)
+                        ->where('fa_estado', 1)
+                        ->first();
+                    if ($familia) {
+                        $id_fa = $familia->id_fa;
+                    }
+                }
+
+                // buscar el producto por código (A) Y nombre (C)
+                $producto = DB::table('productos')
+                    ->where('pro_codigo', $codigo)
+                    ->where('pro_nombre', $nombre)
+                    ->where('pro_estado', 1)
+                    ->first();
+
+                if ($producto) {
+                    // actualizar solo id_fa (null si no se encontró familia)
+                    DB::table('productos')
+                        ->where('id_pro', $producto->id_pro)
+                        ->update([
+                            'id_fa'      => $id_fa,
+                            'updated_at' => now(),
+                        ]);
+                    $actualizados++;
+                } else {
+                    // producto no encontrado, se omite
+                    $no_encontrados++;
+                }
+
+                $fila++;
+            }
+
+            $mensaje = "✔ Actualizados: $actualizados | ✘ No encontrados: $no_encontrados";
+            if (!empty($errores)) {
+                $mensaje .= ' | ⚠ Advertencias: ' . implode('; ', $errores);
+            }
+
+            return json_encode(['result' => ['code' => 1, 'message' => $mensaje]]);
+
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return json_encode(['result' => ['code' => 2, 'message' => 'Error: ' . $e->getMessage()]]);
+        }
+    }
+
     public function guardar_producto(Request $request)
     {
         try {
@@ -536,7 +616,11 @@ class LogisticaController extends Controller
                         'orden_compra_tipo_doc'=>$tipoVe,
                         'orden_compra_numero_doc'=>$request->num_documento_,
                         'orden_compra_doc_adjuntado'=>$fotoDocumento,
-                        'orden_compra_fecha_emision_doc'=>$request->fecha_emision,
+                        'orden_compra_fecha_emision_doc'   => $request->fecha_emision,
+                        'orden_compra_fecha_vencimiento'   => $request->fecha_vencimiento ?: null,
+                        'orden_compra_guia_remicion'       => $request->guia_remision ?: null,
+                        'orden_compra_guia_transportista'  => $request->guia_transportista ?: null,
+                        'orden_compra_condicion'           => $request->input('orden_compra_condicion', 0),
                         'orden_compra_doc_cuotas'=>null,
                         'orden_compra_fecha_recibida'=>$fecha,
                         'orden_compra_usuario_recibido'=>$id_users,
