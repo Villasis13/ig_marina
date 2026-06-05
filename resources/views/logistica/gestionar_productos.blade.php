@@ -189,6 +189,36 @@
     </div>
 </div>
 
+    {{-- Modal Importar Excel --}}
+    <div class="modal fade" id="modal_importar_excel" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5 modal_title text-dark" id="modalImportarLabel">Importar Productos desde Excel</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="formularioImportarExcel" method="POST" action="{{ route('logistica.importar_productos_excel') }}" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-lg-12 mb-3">
+                                <label for="archivo_excel" class="form-label">Seleccionar archivo Excel <span class="text-danger">(*)</span></label>
+                                <input type="file" name="archivo_excel" id="archivo_excel" class="form-control" accept=".xlsx,.xls">
+                                <small class="text-muted">Formatos permitidos: .xlsx, .xls</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning text-white" id="btnImportarExcel">
+                            <i class="fa-solid fa-upload"></i> Importar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 <div class="tab-content">
     <div id="vista_para_opciones_{{$opciones[0]->id_opciones}}" class="tab-pane fade show active " role="tabpanel" aria-labelledby="opciones_{{$opciones[0]->id_opciones}}" tabindex="0">
         <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
@@ -196,6 +226,9 @@
                 <div class="row m-2">
                     <div class="col-lg-2 col-md-12 col-sm-12 d-flex align-items-center">
                         <button class="btn  btn-sm btn-success" id="btn_crear_productos" data-bs-toggle="modal" data-bs-target="#modal_crear_productos"><i class="fa fa-plus"></i> Agregar Productos</button>
+                    </div>
+                    <div class="col-lg-3 col-md-12 col-sm-12 d-flex align-items-center">
+                        <button class="btn btn-sm btn-warning text-white" data-bs-toggle="modal" data-bs-target="#modal_importar_excel"><i class="fa-solid fa-file-excel"></i> Importar Excel</button>
                     </div>
                 </div>
             </div>
@@ -291,6 +324,7 @@
         </div>
     </div>
 </div>
+
 <script src="{{asset('js/domain.js')}}"></script>
 <script src="{{asset('js/logistica.js')}}"></script>
 

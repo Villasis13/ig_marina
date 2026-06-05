@@ -81,24 +81,26 @@ class Productos extends Model
     }
 
 
-    public function sin_bolsa($valor,$medida){
+    public function sin_bolsa($valor, $medida){
         try {
-            // Divide el input en palabras
-            $palabras = explode(' ', $valor);
+            $palabras = array_filter(explode(' ', trim($valor)));
             $result = DB::table('productos as p')
+                ->leftJoin('familias as f', 'f.id_fa', '=', 'p.id_fa')
                 ->where('p.pro_estado', '=', 1)
                 ->where('p.impuesto_bolsa', '=', 0)
                 ->where('p.id_medida', '=', $medida)
                 ->where(function ($query) use ($palabras) {
                     foreach ($palabras as $palabra) {
-                        $query->where('p.pro_nombre', 'like', '%' . $palabra . '%')
-                            ->orWhere('p.pro_codigo', 'like', '%' . $palabra . '%');
+                        $query->orWhere('p.pro_nombre', 'like', '%' . $palabra . '%')
+                              ->orWhere('p.pro_codigo', 'like', '%' . $palabra . '%')
+                              ->orWhere('f.fa_codigo',  'like', '%' . $palabra . '%')
+                              ->orWhere('f.fa_nombre',  'like', '%' . $palabra . '%');
                     }
-                })->get();
-
-//            $result = DB::table('productos as p')
-//                ->where([['p.pro_nombre','like', '%'.$valor.'%'],['p.pro_estado','=',1]])->get();
-        }catch (\Exception $e){
+                })
+                ->select('p.*', 'f.fa_nombre', 'f.fa_codigo as familia_codigo')
+                ->limit(100)
+                ->get();
+        } catch (\Exception $e){
             $this->logs->insertarLog($e);
             $result = [];
         }

@@ -35,13 +35,26 @@ class Almacen extends Model
         return $result;
     }
     public  function listarOtrosAlmacenes($id){
-
         try {
             $result = DB::table('almacen')->where('id_almacen','<>',$id)
                 ->where('almacen_estado','=',1)->get();
         }catch(\Exception $e){
             $this->log->insertarLog($e);
             $result = [];
+        }
+        return $result;
+    }
+
+    public function almacen_x_codigo($codigo)
+    {
+        try {
+            $result = DB::table('almacen')
+                ->where('almacen_codigo', $codigo)
+                ->where('almacen_estado', 1)
+                ->first();
+        } catch (\Exception $e) {
+            $this->log->insertarLog($e);
+            $result = null;
         }
         return $result;
     }

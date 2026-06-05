@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Almacen;
 use App\Models\Categoria;
+use App\Models\Medida;
+use App\Models\Operacion;
+use App\Models\UnidadManejo;
+use App\Models\Clasificador;
 use App\Models\Familia;
 use App\Models\General;
+use App\Models\Linea;
 use App\Models\Logs;
 use App\Models\Menu;
 use App\Models\Opciones;
@@ -33,6 +39,11 @@ class GestionController extends Controller
     private $proveedores;
     private $familias;
     private $categorias;
+    private $lineas;
+    private $clasificadores;
+    private $almacenes;
+    private $operaciones;
+    private $unidadManejos;
     public function __construct()
     {
         $this->menus = new Menu();
@@ -46,6 +57,11 @@ class GestionController extends Controller
         $this->proveedores = new Proveedores();
         $this->familias = new Familia();
         $this->categorias = new Categoria();
+        $this->lineas = new Linea();
+        $this->clasificadores = new Clasificador();
+        $this->almacenes = new Almacen();
+        $this->operaciones = new Operacion();
+        $this->unidadManejos = new UnidadManejo();
 //        $this->familias = new Fa
     }
     public function proveedores()
@@ -383,6 +399,7 @@ class GestionController extends Controller
                         'cliente_correo'=>$request->cliente_correo,
                         'cliente_atencion'=>$request->cliente_atencion,
                         'cliente_ubigeo'=>$request->cliente_ubigeo ?: null,
+                        'cliente_contribuyente'=>$request->cliente_contribuyente ?: null,
                         'cliente_fecha'=>date('Y-m-d'),
                         'cliente_estado'=>1,
                     ]);
@@ -411,6 +428,7 @@ class GestionController extends Controller
                         'cliente_correo'=>$request->cliente_correo,
                         'cliente_atencion'=>$request->cliente_atencion,
                         'cliente_ubigeo'=>$request->cliente_ubigeo ?: null,
+                        'cliente_contribuyente'=>$request->cliente_contribuyente ?: null,
                         'cliente_estado'=>1,
                     ]);
                     $result = $actualizar ?1:2;
@@ -523,6 +541,393 @@ class GestionController extends Controller
     public function ubigeo_distritos(Request $request){
         $distritos = DB::table('ubigeo_peru_districts')->where('province_id', $request->prov_id)->orderBy('name')->get();
         return response()->json($distritos);
+    }
+
+    public function lineas()
+    {
+        try {
+            $lineas = $this->lineas->listar_lineas();
+            $opciones = $this->submenu->optiones_por_vista("lineas");
+            return view('gestion/lineas', compact('lineas', 'opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>
+                alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
+                window.location.href = '" . route('admin') . "';
+            </script>";
+        }
+    }
+
+    public function guardar_linea(Request $request)
+    {
+        try {
+            $result = 2;
+            $message = "Ha ocurrido un error.";
+
+            if ($request->estadoActionFuctionLinea == 1) {
+                $validar = $this->lineas->linea_x_codigo($request->linea_codigo);
+                if (!$validar) {
+                    $guardar = DB::table('lineas')->insert([
+                        'id_users'          => \Illuminate\Support\Facades\Auth::id(),
+                        'linea_codigo'      => $request->linea_codigo,
+                        'linea_descripcion' => $request->linea_descripcion,
+                        'linea_tipo'        => $request->linea_tipo ?: null,
+                        'linea_estado'      => 1,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+                    $result = $guardar ? 1 : 2;
+                    $message = "¡Registro guardado exitoso!";
+                } else {
+                    $result = 3;
+                    $message = "Ya existe una línea registrada con ese código.";
+                }
+            } elseif ($request->estadoActionFuctionLinea == 2) {
+                $validar = $this->lineas->linea_x_codigo($request->linea_codigo);
+                if (!$validar || $validar->id_linea == $request->id_linea) {
+                    $actualizar = DB::table('lineas')->where('id_linea', '=', $request->id_linea)->update([
+                        'linea_codigo'      => $request->linea_codigo,
+                        'linea_descripcion' => $request->linea_descripcion,
+                        'linea_tipo'        => $request->linea_tipo ?: null,
+                        'updated_at'        => now(),
+                    ]);
+                    $result = $actualizar ? 1 : 2;
+                    $message = "¡Registro actualizado exitoso!";
+                } else {
+                    $result = 3;
+                    $message = "Ya existe una línea registrada con ese código.";
+                }
+            } else {
+                $delete = DB::table('lineas')->where('id_linea', '=', $request->id_linea)->update([
+                    'linea_estado' => 0,
+                    'updated_at'   => now(),
+                ]);
+                $result = $delete ? 1 : 2;
+                $message = "¡Registro eliminado exitoso!";
+            }
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+        }
+        return json_encode(array("result" => array("code" => $result, "message" => $message)));
+    }
+
+    public function listar_datos_linea(Request $request)
+    {
+        try {
+            $result = $this->lineas->datos_linea($request->id_linea);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response(json_encode($e), 200)->header('Content-type', 'text/plain');
+        }
+        return json_encode(array("result" => array("code" => $result)));
+    }
+
+    public function clasificadores()
+    {
+        try {
+            $clasificadores = $this->clasificadores->listar_clasificadores();
+            $opciones = $this->submenu->optiones_por_vista("clasificadores");
+            return view('gestion/clasificadores', compact('clasificadores', 'opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>
+                alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
+                window.location.href = '" . route('admin') . "';
+            </script>";
+        }
+    }
+
+    public function guardar_clasificador(Request $request)
+    {
+        try {
+            $result = 2;
+            $message = "Ha ocurrido un error.";
+
+            if ($request->estadoActionFuctionClasificador == 1) {
+                $validar = $this->clasificadores->clasificador_x_codigo($request->clasificador_codigo);
+                if (!$validar) {
+                    $guardar = DB::table('clasificadores')->insert([
+                        'id_users'              => Auth::id(),
+                        'clasificador_codigo'   => $request->clasificador_codigo,
+                        'clasificador_nombre'   => $request->clasificador_nombre,
+                        'clasificador_estado'   => 1,
+                        'created_at'            => now(),
+                        'updated_at'            => now(),
+                    ]);
+                    $result = $guardar ? 1 : 2;
+                    $message = "¡Registro guardado exitoso!";
+                } else {
+                    $result = 3;
+                    $message = "Ya existe un clasificador registrado con ese código.";
+                }
+            } elseif ($request->estadoActionFuctionClasificador == 2) {
+                $validar = $this->clasificadores->clasificador_x_codigo($request->clasificador_codigo);
+                if (!$validar || $validar->id_clasificador == $request->id_clasificador) {
+                    $actualizar = DB::table('clasificadores')->where('id_clasificador', $request->id_clasificador)->update([
+                        'clasificador_codigo' => $request->clasificador_codigo,
+                        'clasificador_nombre' => $request->clasificador_nombre,
+                        'updated_at'          => now(),
+                    ]);
+                    $result = $actualizar ? 1 : 2;
+                    $message = "¡Registro actualizado exitoso!";
+                } else {
+                    $result = 3;
+                    $message = "Ya existe un clasificador registrado con ese código.";
+                }
+            } else {
+                $delete = DB::table('clasificadores')->where('id_clasificador', $request->id_clasificador)->update([
+                    'clasificador_estado' => 0,
+                    'updated_at'          => now(),
+                ]);
+                $result = $delete ? 1 : 2;
+                $message = "¡Registro eliminado exitoso!";
+            }
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+        }
+        return json_encode(array("result" => array("code" => $result, "message" => $message)));
+    }
+
+    public function listar_datos_clasificador(Request $request)
+    {
+        try {
+            $result = $this->clasificadores->datos_clasificador($request->id_clasificador);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response(json_encode($e), 200)->header('Content-type', 'text/plain');
+        }
+        return json_encode(array("result" => array("code" => $result)));
+    }
+
+    public function almacenes()
+    {
+        try {
+            $almacenes = $this->almacenes->listar_almacen();
+            $opciones  = $this->submenu->optiones_por_vista("almacenes");
+            return view('gestion/almacenes', compact('almacenes', 'opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>
+                alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
+                window.location.href = '" . route('admin') . "';
+            </script>";
+        }
+    }
+
+    public function guardar_almacen(Request $request)
+    {
+        try {
+            $result  = 2;
+            $message = "Ha ocurrido un error.";
+
+            if ($request->estadoActionFuctionAlmacen == 1) {
+                $validar = $this->almacenes->almacen_x_codigo($request->almacen_codigo);
+                if (!$validar) {
+                    $guardar = DB::table('almacen')->insert([
+                        'almacen_codigo'  => $request->almacen_codigo,
+                        'almacen_nombre'  => $request->almacen_nombre,
+                        'almacen_sunat'   => $request->almacen_sunat ?: null,
+                        'almacen_ap'      => $request->almacen_ap ? 1 : 0,
+                        'almacen_estado'  => 1,
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                    $result  = $guardar ? 1 : 2;
+                    $message = "¡Registro guardado exitoso!";
+                } else {
+                    $result  = 3;
+                    $message = "Ya existe un almacén registrado con ese código.";
+                }
+            } elseif ($request->estadoActionFuctionAlmacen == 2) {
+                $validar = $this->almacenes->almacen_x_codigo($request->almacen_codigo);
+                if (!$validar || $validar->id_almacen == $request->id_almacen) {
+                    $actualizar = DB::table('almacen')->where('id_almacen', $request->id_almacen)->update([
+                        'almacen_codigo' => $request->almacen_codigo,
+                        'almacen_nombre' => $request->almacen_nombre,
+                        'almacen_sunat'  => $request->almacen_sunat ?: null,
+                        'almacen_ap'     => $request->almacen_ap ? 1 : 0,
+                        'updated_at'     => now(),
+                    ]);
+                    $result  = $actualizar ? 1 : 2;
+                    $message = "¡Registro actualizado exitoso!";
+                } else {
+                    $result  = 3;
+                    $message = "Ya existe un almacén registrado con ese código.";
+                }
+            } else {
+                $delete  = DB::table('almacen')->where('id_almacen', $request->id_almacen)->update([
+                    'almacen_estado' => 0,
+                    'updated_at'     => now(),
+                ]);
+                $result  = $delete ? 1 : 2;
+                $message = "¡Registro eliminado exitoso!";
+            }
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+        }
+        return json_encode(array("result" => array("code" => $result, "message" => $message)));
+    }
+
+    public function listar_datos_almacen(Request $request)
+    {
+        try {
+            $result = $this->almacenes->datos_almacen($request->id_almacen);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response(json_encode($e), 200)->header('Content-type', 'text/plain');
+        }
+        return json_encode(array("result" => array("code" => $result)));
+    }
+
+    public function operaciones()
+    {
+        try {
+            $operaciones = $this->operaciones->listar_operaciones();
+            $opciones    = $this->submenu->optiones_por_vista("operaciones");
+            return view('gestion/operaciones', compact('operaciones', 'opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>
+                alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
+                window.location.href = '" . route('admin') . "';
+            </script>";
+        }
+    }
+
+    public function guardar_operacion(Request $request)
+    {
+        try {
+            $result  = 2;
+            $message = "Ha ocurrido un error.";
+
+            $datos = [
+                'operacion_tipo'        => $request->operacion_tipo,
+                'operacion_descripcion' => $request->operacion_descripcion,
+                'operacion_operacion'   => $request->operacion_operacion,
+                'operacion_stock'       => $request->operacion_stock       ? 1 : 0,
+                'operacion_compra'      => $request->operacion_compra      ? 1 : 0,
+                'operacion_promediar'   => $request->operacion_promediar   ? 1 : 0,
+            ];
+
+            if ($request->estadoActionFuctionOperacion == 1) {
+                $guardar = DB::table('operaciones')->insert(array_merge($datos, [
+                    'id_users'         => Auth::id(),
+                    'operacion_estado' => 1,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]));
+                $result  = $guardar ? 1 : 2;
+                $message = "¡Registro guardado exitoso!";
+
+            } elseif ($request->estadoActionFuctionOperacion == 2) {
+                $actualizar = DB::table('operaciones')
+                    ->where('id_operacion', $request->id_operacion)
+                    ->update(array_merge($datos, ['updated_at' => now()]));
+                $result  = $actualizar ? 1 : 2;
+                $message = "¡Registro actualizado exitoso!";
+
+            } else {
+                $delete  = DB::table('operaciones')
+                    ->where('id_operacion', $request->id_operacion)
+                    ->update(['operacion_estado' => 0, 'updated_at' => now()]);
+                $result  = $delete ? 1 : 2;
+                $message = "¡Registro eliminado exitoso!";
+            }
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+        }
+        return json_encode(array("result" => array("code" => $result, "message" => $message)));
+    }
+
+    public function listar_datos_operacion(Request $request)
+    {
+        try {
+            $result = $this->operaciones->datos_operacion($request->id_operacion);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response(json_encode($e), 200)->header('Content-type', 'text/plain');
+        }
+        return json_encode(array("result" => array("code" => $result)));
+    }
+
+    public function unidad_manejo()
+    {
+        try {
+            $unidad_manejos = $this->unidadManejos->listar_unidad_manejos();
+            $medidas         = Medida::listar_medidas();
+            $opciones        = $this->submenu->optiones_por_vista("unidad_manejo");
+            return view('gestion/unidad_manejo', compact('unidad_manejos', 'medidas', 'opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>
+                alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
+                window.location.href = '" . route('admin') . "';
+            </script>";
+        }
+    }
+
+    public function guardar_unidad_manejo(Request $request)
+    {
+        try {
+            $result  = 2;
+            $message = "Ha ocurrido un error.";
+
+            if ($request->estadoActionFuctionUM == 1) {
+                $validar = $this->unidadManejos->unidad_manejo_x_codigo($request->unidad_manejo_codigo);
+                if (!$validar) {
+                    $guardar = DB::table('unidad_manejos')->insert([
+                        'id_users'              => Auth::id(),
+                        'id_medida'             => $request->id_medida,
+                        'unidad_manejo_codigo'  => $request->unidad_manejo_codigo,
+                        'unidad_manejo_sunat'   => $request->unidad_manejo_sunat ?: null,
+                        'unidad_manejo_estado'  => 1,
+                        'created_at'            => now(),
+                        'updated_at'            => now(),
+                    ]);
+                    $result  = $guardar ? 1 : 2;
+                    $message = "¡Registro guardado exitoso!";
+                } else {
+                    $result  = 3;
+                    $message = "Ya existe una unidad de manejo con ese código.";
+                }
+            } elseif ($request->estadoActionFuctionUM == 2) {
+                $validar = $this->unidadManejos->unidad_manejo_x_codigo($request->unidad_manejo_codigo);
+                if (!$validar || $validar->id_unidad_manejo == $request->id_unidad_manejo) {
+                    $actualizar = DB::table('unidad_manejos')->where('id_unidad_manejo', $request->id_unidad_manejo)->update([
+                        'id_medida'            => $request->id_medida,
+                        'unidad_manejo_codigo' => $request->unidad_manejo_codigo,
+                        'unidad_manejo_sunat'  => $request->unidad_manejo_sunat ?: null,
+                        'updated_at'           => now(),
+                    ]);
+                    $result  = $actualizar ? 1 : 2;
+                    $message = "¡Registro actualizado exitoso!";
+                } else {
+                    $result  = 3;
+                    $message = "Ya existe una unidad de manejo con ese código.";
+                }
+            } else {
+                $delete  = DB::table('unidad_manejos')->where('id_unidad_manejo', $request->id_unidad_manejo)->update([
+                    'unidad_manejo_estado' => 0,
+                    'updated_at'           => now(),
+                ]);
+                $result  = $delete ? 1 : 2;
+                $message = "¡Registro eliminado exitoso!";
+            }
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+        }
+        return json_encode(array("result" => array("code" => $result, "message" => $message)));
+    }
+
+    public function listar_datos_unidad_manejo(Request $request)
+    {
+        try {
+            $result = $this->unidadManejos->datos_unidad_manejo($request->id_unidad_manejo);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response(json_encode($e), 200)->header('Content-type', 'text/plain');
+        }
+        return json_encode(array("result" => array("code" => $result)));
     }
 
 

@@ -129,6 +129,8 @@
                                                                 <option value="{{$t->id_tipo_venta}}">{{$t->tipo_venta_nombre}}</option>
                                                             @endforeach
                                                                 <option value="3">Nota de venta</option>
+                                                                <option value="4">Ticket</option>
+                                                                <option value="5">Guía</option>
                                                         </select>
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
@@ -138,6 +140,13 @@
                                                             @foreach($tipo_pago as $t)
                                                                 <option value="{{$t->id_tipo_pago}}">{{$t->tipo_pago_nombre}}</option>
                                                             @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                        <label class="form-label">Condición</label>
+                                                        <select name="orden_compra_condicion" id="orden_compra_condicion" class="form-control w-50 m-1">
+                                                            <option value="0">Contado</option>
+                                                            <option value="1">Crédito</option>
                                                         </select>
                                                     </div>
                                                 </div>
@@ -156,7 +165,11 @@
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
                                                         <label for="fecha_emision" class="form-label">Fecha de Emision</label>
-                                                        <input type="date" id="fecha_emision" name="fecha_emision" class="form-control w-50 m-1" value="2024-01-20">
+                                                        <input type="date" id="fecha_emision" name="fecha_emision" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
+                                                    </div>
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                        <label for="fecha_vencimiento" class="form-label">Fecha Vencimiento</label>
+                                                        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1">
                                                     </div>
                                                 </div>
                                             </div>
@@ -166,8 +179,16 @@
                                                         <label for="observaciones_orden_compra">Observaciones</label>
                                                         <textarea name="observaciones_orden_compra" id="observaciones_orden_compra" cols="30" rows="2" class="form-control w-100 m-1"></textarea>
                                                     </div>
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                        <label for="guia_remision" class="form-label">Guía de Remisión</label>
+                                                        <input type="text" id="guia_remision" name="guia_remision" class="form-control w-50 m-1" placeholder="Nro. guía">
+                                                    </div>
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                        <label for="guia_transportista" class="form-label">Guía Transportista</label>
+                                                        <input type="text" id="guia_transportista" name="guia_transportista" class="form-control w-50 m-1" placeholder="Transportista">
+                                                    </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12">
-                                                        <label for="adjuntar_foto">Adjuntar Foto</label>
+                                                        <label for="adjuntar_foto">Adjuntar Documentos</label>
                                                         <div class="input-group">
                                                             <input type="file" class="form-control" id="adjuntar_foto" name="adjuntar_foto" aria-describedby="inputGroupFileAddon04" aria-label="Upload">
                                                         </div>
@@ -179,8 +200,8 @@
                                                     <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <label for="productos_orden_compra" class="fw-semibold"><i class="bx bx-search"></i> Buscar Productos</label>
                                                         <input type="text" name="productos_orden_compra" id="productos_orden_compra" placeholder="Ingrese Información..." class="form-control  p-1">
-                                                        <div class="shadow" style="z-index: 999;position: absolute; width: 90%">
-                                                            <div class="list-group list-group-flush bg-white  " style="overflow: auto;" id="listar_productos_orden_compra">
+                                                        <div class="shadow" style="z-index: 999; position: absolute; width: 60%;">
+                                                            <div class="list-group list-group-flush bg-white" style="max-height: 320px; overflow-y: auto;" id="listar_productos_orden_compra">
 
                                                             </div>
                                                         </div>

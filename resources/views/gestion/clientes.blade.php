@@ -66,6 +66,17 @@
                             <label for="cliente_direccion" class="form-label">Dirección</label>
                             <textarea name="cliente_direccion" id="cliente_direccion" rows="2" class="form-control"></textarea>
                         </div>
+                        {{-- Contribuyente --}}
+                        <div class="col-lg-12 col-md-12 col-sm-12 mb-2">
+                            <label for="cliente_contribuyente" class="form-label">Tipo de Contribuyente</label>
+                            <select name="cliente_contribuyente" id="cliente_contribuyente" class="form-select">
+                                <option value="">Seleccionar</option>
+                                <option value="1">01 Cliente</option>
+                                <option value="2">02 Empleado</option>
+                                <option value="3">03 Transporte</option>
+                                <option value="4">04 Sujeto ND</option>
+                            </select>
+                        </div>
                         {{-- Ubigeo: Departamento → Provincia → Distrito --}}
                         <div class="col-lg-12 col-md-12 col-sm-12 mb-1"><small class="text-muted">Ubigeo</small></div>
                         <div class="col-lg-4 col-md-4 col-sm-12 mb-2">
