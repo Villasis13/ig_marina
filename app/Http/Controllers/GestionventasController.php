@@ -1448,24 +1448,38 @@ class GestionventasController extends Controller
             $pdf->Cell(180,0,'','T',1,'R');
             $pdf->Ln(3);
             $pdf->SetFont('Helvetica','B',7);
-            $pdf->Cell(8, 10, 'ITEM', 1,'','C',1);
-            $pdf->Cell(30, 10, utf8_decode("CÓDIGO"),1,0,'C',1);
-            $pdf->Cell(10, 10, 'CANT',1,0,'C',1);
-            $pdf->Cell(10, 10, 'U.M',1,0,'C',1);
-            $pdf->Cell(95, 10, utf8_decode('DESCRIPCIÓN'), 1,'','C',1);
-            $pdf->Cell(15, 10, 'P.U.',1,0,'C',1);
-//            $pdf->Cell(10, 10, 'IGV',1,0,'C',1);
-            $pdf->Cell(17, 10, 'P.VENTA',1,1,'C',1);
+            $pdf->Cell(8,  8, 'ITEM',                  1, '', 'C', 1);
+            $pdf->Cell(22, 8, utf8_decode('CÓDIGO'),   1, 0,  'C', 1);
+            $pdf->Cell(58, 8, utf8_decode('PRODUCTO'),  1, '', 'C', 1);
+            $pdf->Cell(28, 8, 'FAMILIA',               1, 0,  'C', 1);
+            $pdf->Cell(10, 8, 'CANT',                  1, 0,  'C', 1);
+            $pdf->Cell(10, 8, 'U.M.',                  1, 0,  'C', 1);
+            $pdf->Cell(22, 8, 'P.UNIT',                1, 0,  'C', 1);
+            $pdf->Cell(27, 8, 'P.VENTA',               1, 1,  'C', 1);
 
             //PRODUCTOS
-            $pdf->SetWidths(array(8,30,10,10,95,15,17));
+            $pdf->SetWidths(array(8,22,58,28,10,10,22,27));
             $aa=1;
             $filas_tot = 0;
             foreach ($detalle_venta as $f){
                 $pdf->SetFont('Helvetica', '', 7);
-                $medida = DB::table('productos')->where('id_pro','=',$f->id_pro)->first();
-                $meT = $medida->id_medida == 58 ? 'NIU' : 'ZZ';
-                $pdf->Row(array($aa,$medida->pro_codigo,$f->venta_detalle_cantidad,$meT, utf8_decode($f->venta_detalle_nombre_producto)."\n".utf8_decode($f->venta_detalle_descripcion),  number_format(round("$f->venta_detalle_precio_unitario",2), 2, '.', ' '),number_format(round("$f->venta_detalle_importe_total",2), 2, '.', ' ')));
+                $medida = DB::table('productos as p')
+                    ->leftJoin('familias as fa', 'fa.id_fa', '=', 'p.id_fa')
+                    ->where('p.id_pro', '=', $f->id_pro)
+                    ->select('p.*', 'fa.fa_nombre', 'fa.fa_codigo as fa_codigo_fam')
+                    ->first();
+                $meT    = $medida->id_medida == 58 ? 'NIU' : 'ZZ';
+                $familia = implode(' - ', array_filter([$medida->fa_codigo_fam ?? null, $medida->fa_nombre ?? null])) ?: '-';
+                $pdf->Row(array(
+                    $aa,
+                    $medida->pro_codigo,
+                    utf8_decode($f->venta_detalle_nombre_producto)."\n".utf8_decode($f->venta_detalle_descripcion),
+                    utf8_decode($familia),
+                    $f->venta_detalle_cantidad,
+                    $meT,
+                    number_format(round("$f->venta_detalle_precio_unitario", 2), 2, '.', ' '),
+                    number_format(round("$f->venta_detalle_importe_total",    2), 2, '.', ' '),
+                ));
                 $cant = strlen($f->venta_detalle_nombre_producto);
                 $filas = ceil($cant / 65);
                 if($filas==0){$filas=1;}
@@ -1670,22 +1684,38 @@ class GestionventasController extends Controller
             $pdf->Cell(180,0,'','T',1,'R');
             $pdf->Ln(3);
             $pdf->SetFont('Helvetica','B',7);
-            $pdf->Cell(8, 10, 'ITEM', 1,'','C',1);
-            $pdf->Cell(10, 10, 'CANT',1,0,'C',1);
-            $pdf->Cell(105, 10, utf8_decode('DESCRIPCIÓN'), 1,'','C',1);
-            $pdf->Cell(15, 10, 'V.U.',1,0,'C',1);
-            $pdf->Cell(15, 10, 'P.U.',1,0,'C',1);
-            $pdf->Cell(10, 10, 'IGV',1,0,'C',1);
-            $pdf->Cell(17, 10, 'P.VENTA',1,1,'C',1);
+            $pdf->Cell(8,  10, 'ITEM',                  1, '', 'C', 1);
+            $pdf->Cell(22, 10, utf8_decode('CÓDIGO'),   1, 0,  'C', 1);
+            $pdf->Cell(58, 10, utf8_decode('PRODUCTO'),  1, '', 'C', 1);
+            $pdf->Cell(28, 10, 'FAMILIA',               1, 0,  'C', 1);
+            $pdf->Cell(10, 10, 'CANT',                  1, 0,  'C', 1);
+            $pdf->Cell(10, 10, 'U.M.',                  1, 0,  'C', 1);
+            $pdf->Cell(22, 10, 'P.UNIT',                1, 0,  'C', 1);
+            $pdf->Cell(27, 10, 'P.VENTA',               1, 1,  'C', 1);
 
             //PRODUCTOS
-            $pdf->SetWidths(array(8,10,105,15,15,10,17));
+            $pdf->SetWidths(array(8,22,58,28,10,10,22,27));
             $aa=1;
             $filas_tot = 0;
             foreach ($detalle_venta as $f){
                 $pdf->SetFont('Helvetica', '', 7);
-                $pdf->Row(array($aa,$f->venta_detalle_cantidad, $f->venta_detalle_nombre_producto,  number_format(round("$f->venta_detalle_valor_unitario",2), 2, '.', ' '),  number_format(round("$f->venta_detalle_precio_unitario",2), 2, '.', ' '),$f->venta_detalle_total_igv,number_format(round("$f->venta_detalle_importe_total",2), 2, '.', ' ')));
-
+                $medida = DB::table('productos as p')
+                    ->leftJoin('familias as fa', 'fa.id_fa', '=', 'p.id_fa')
+                    ->where('p.id_pro', '=', $f->id_pro)
+                    ->select('p.*', 'fa.fa_nombre', 'fa.fa_codigo as fa_codigo_fam')
+                    ->first();
+                $meT    = $medida->id_medida == 58 ? 'NIU' : 'ZZ';
+                $familia = implode(' - ', array_filter([$medida->fa_codigo_fam ?? null, $medida->fa_nombre ?? null])) ?: '-';
+                $pdf->Row(array(
+                    $aa,
+                    $medida->pro_codigo,
+                    utf8_decode($f->venta_detalle_nombre_producto)."\n".utf8_decode($f->venta_detalle_descripcion),
+                    utf8_decode($familia),
+                    $f->venta_detalle_cantidad,
+                    $meT,
+                    number_format(round("$f->venta_detalle_precio_unitario", 2), 2, '.', ' '),
+                    number_format(round("$f->venta_detalle_importe_total",    2), 2, '.', ' '),
+                ));
                 $cant = strlen($f->venta_detalle_nombre_producto);
                 $filas = ceil($cant / 65);
                 if($filas==0){$filas=1;}

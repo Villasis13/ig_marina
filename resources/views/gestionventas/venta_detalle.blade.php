@@ -164,7 +164,7 @@
                                                    @php $a = 0.00 @endphp
                                                    @foreach($detalle_venta as $item)
                                                        <div class="col-lg-12 d-flex align-items-center justify-content-between mt-1 mb-1">
-                                                           <label class="venta_titulo_tich">{{$item->venta_detalle_nombre_producto}}</label>
+                                                           <label class="venta_titulo_tich">{{$item->venta_detalle_nombre_producto}}@if($item->pro_codigo) <span style="color:#212a31;font-family:monospace;font-size:13px"> - {{$item->pro_codigo}}</span>@endif</label>
                                                            <b>{{$item->venta_detalle_precio_unitario}} <b style="font-size: 11px">x {{$item->venta_detalle_cantidad}}</b></b>
                                                        </div>
                                                        @php
@@ -188,9 +188,9 @@
                                                        <label class="venta_titulo_tich" >Monto Pagado</label>
                                                        <div class="d-flex align-items-center">
                                                            @if($venta->venta_totaldescuento > 0)
-                                                               <b class="me-1" style="font-size: 30px;color: #3cb815" id="total_cantidad__moneda">{{number_format($venta->venta_total, 2, '.', '')}}</b><del>{{number_format($venta->venta_total+$venta->venta_totaldescuento, 2, '.', '')}}</del>
+                                                               <b class="me-1" style="font-size: 30px;color: #3cb815" id="total_cantidad__moneda">{{number_format($venta->venta_total, 2, '.', ',')}}</b><del>{{number_format($venta->venta_total+$venta->venta_totaldescuento, 2, '.', ',')}}</del>
                                                            @else
-                                                               <b class="me-1" style="font-size: 30px;color: #3cb815" id="total_cantidad__moneda">{{number_format($venta->venta_total, 2, '.', '')}}</b>
+                                                               <b class="me-1" style="font-size: 30px;color: #3cb815" id="total_cantidad__moneda">{{number_format($venta->venta_total, 2, '.', ',')}}</b>
                                                            @endif
                                                            <label class="venta_titulo_tich cambiar_tipo_moneda">{{$venta->id_moneda == 1 ? 'PEN' : 'USD'}} </label>
                                                        </div>
