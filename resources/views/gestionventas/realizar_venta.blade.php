@@ -372,7 +372,7 @@
                             {{-- Buscador --}}
                             <div style="position:relative;margin-bottom:24px">
                                 <label class="rv-search-label">
-                                    <i class="fa-solid fa-search"></i> Código de barra / Nombre de producto
+                                    <i class="fa-solid fa-search"></i> Nombre de producto
                                 </label>
                                 <input type="text" name="buscar_productos_ventas" id="buscar_productos_ventas"
                                        placeholder="Ingrese información..." class="rv-search-input">
