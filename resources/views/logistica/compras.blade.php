@@ -169,7 +169,7 @@
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
                                                         <label for="fecha_vencimiento" class="form-label">Fecha Vencimiento</label>
-                                                        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1">
+                                                        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
                                                     </div>
                                                 </div>
                                             </div>

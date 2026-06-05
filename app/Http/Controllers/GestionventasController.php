@@ -558,7 +558,8 @@ class GestionventasController extends Controller
                     $total_igv = 0;
                     foreach ($product as $d){
                         $precio = $d['cantidad'] >= 12 ? $d['precio_mayor'] : $d['precio_venta'];
-//                        $cantidad_igv = $d['id_tipo_afectacion'] == 1 ?  $precio - ($precio / $d['porcentaje_igv']) : 0;
+                        $desc_prod = isset($d['descuento']) ? floatval($d['descuento']) : 0;
+                        $precio = $precio * (1 - $desc_prod / 100);
                         if ($d['id_tipo_afectacion'] == 1 ){
                             $menosC = $precio - ($precio / $d['porcentaje_igv']);
                             $menosC = round($menosC,2);
@@ -727,7 +728,8 @@ class GestionventasController extends Controller
                                             $detalles = [];
                                             foreach ($product as $d){
                                                 $precio = $d['cantidad'] >= 12 ? $d['precio_mayor'] : $d['precio_venta'];
-                                                $precio = round($precio,2);
+                                                $desc_prod = isset($d['descuento']) ? floatval($d['descuento']) : 0;
+                                                $precio = round($precio * (1 - $desc_prod / 100), 2);
                                                 $cantidad_igv = $d['id_tipo_afectacion'] == 1 ?  $precio - ($precio / $d['porcentaje_igv']) : 0;
                                                 $cantidad_igv = round($cantidad_igv,2);
 
@@ -747,10 +749,11 @@ class GestionventasController extends Controller
                                                     'venta_detalle_descripcion' => $d['descripcion'],
                                                     'venta_detalle_cantidad' => $d['cantidad'],
                                                     'venta_detalle_total_igv' => $cantidad_igv * $d['cantidad'],
-                                                    'venta_detalle_porcentaje_igv' => $porcentaje_igv, // ejem 0.18
+                                                    'venta_detalle_porcentaje_igv' => $porcentaje_igv,
                                                     'venta_detalle_total_icbper' => 0,
                                                     'venta_detalle_valor_total' => (($precio - $cantidad_igv) * $d['cantidad']),
                                                     'venta_detalle_importe_total' => $precio * $d['cantidad'],
+                                                    'venta_detalle_descuento' => $desc_prod,
                                                 ];
                                                 // Marcar serie como vendida si el producto usa control de serie
                                                 if (!empty($d['id_serie_producto'])) {
@@ -900,8 +903,8 @@ class GestionventasController extends Controller
                                             $detalles = [];
                                             foreach ($product as $d){
                                                 $precio = $d['cantidad'] >= 12 ? $d['precio_mayor'] : $d['precio_venta'];
-                                                $precio = round($precio,2);
-//                                        $cantidad_igv = $d['id_tipo_afectacion'] == 1 ? $precio * $d['porcentaje_igv'] : 0;
+                                                $desc_prod = isset($d['descuento']) ? floatval($d['descuento']) : 0;
+                                                $precio = round($precio * (1 - $desc_prod / 100), 2);
                                                 $cantidad_igv = $d['id_tipo_afectacion'] == 1 ?  $precio - ($precio / $d['porcentaje_igv']) : 0;
                                                 $cantidad_igv =  round($cantidad_igv,2);
                                                 if ($d['porcentaje_igv'] == 1.18){
@@ -919,11 +922,12 @@ class GestionventasController extends Controller
                                                     'venta_detalle_nombre_producto' => $d['nombre_producto'],
                                                     'venta_detalle_descripcion' => $d['descripcion'],
                                                     'venta_detalle_cantidad' => $d['cantidad'],
-                                                    'venta_detalle_total_igv' => $cantidad_igv * $d['cantidad'] ,
-                                                    'venta_detalle_porcentaje_igv' => $porcentaje_igv, // ejem 0.18
+                                                    'venta_detalle_total_igv' => $cantidad_igv * $d['cantidad'],
+                                                    'venta_detalle_porcentaje_igv' => $porcentaje_igv,
                                                     'venta_detalle_total_icbper' => 0,
                                                     'venta_detalle_valor_total' => (($precio - $cantidad_igv) * $d['cantidad']),
                                                     'venta_detalle_importe_total' => $precio * $d['cantidad'],
+                                                    'venta_detalle_descuento' => $desc_prod,
                                                 ];
                                                 // Marcar serie como vendida si el producto usa control de serie
                                                 if (!empty($d['id_serie_producto'])) {

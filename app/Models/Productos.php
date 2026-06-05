@@ -55,24 +55,24 @@ class Productos extends Model
 
     public function buscar_productos($valor,$medida = null){
         try {
-            // Divide el input en palabras
-            $palabras = explode(' ', $valor);
+            $palabras = array_filter(explode(' ', trim($valor)));
+            if (empty($palabras)) $palabras = [''];
 
             $result = DB::table('productos as p')
+                ->leftJoin('familias as f', 'f.id_fa', '=', 'p.id_fa')
                 ->where('p.pro_estado', '=', 1)
-                ->select('p.*');
+                ->select('p.*', 'f.fa_nombre', 'f.fa_codigo as familia_codigo');
             if ($medida){
                 $result->where('p.id_medida', '=', $medida);
             }
             $result = $result->where(function ($query) use ($palabras) {
                     foreach ($palabras as $palabra) {
-                        $query->where('p.pro_nombre', 'like', '%' . $palabra . '%')
-                            ->orWhere('p.pro_codigo', 'like', '%' . $palabra . '%');
+                        $query->orWhere('p.pro_nombre', 'like', '%' . $palabra . '%')
+                            ->orWhere('p.pro_codigo', 'like', '%' . $palabra . '%')
+                            ->orWhere('f.fa_codigo', 'like', '%' . $palabra . '%')
+                            ->orWhere('f.fa_nombre', 'like', '%' . $palabra . '%');
                     }
                 })->limit(100)->get();
-
-//            $result = DB::table('productos as p')
-//                ->where([['p.pro_nombre','like', '%'.$valor.'%'],['p.pro_estado','=',1]])->get();
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             $result = [];

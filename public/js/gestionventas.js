@@ -686,25 +686,21 @@ function buscar_producto_generar_ventas(id){
         dataType: 'json',
     }).done(function(r){
         let datos = r.result.code;
-        let body = `<div style="height: 305px;overflow: auto;">`;
+        let body = '';
         if(datos.length > 0 ){
             datos.map(function(el,index){
-                body +=
-                    `
-                        <a class="list-group-item list-group-item-action" style="cursor: pointer!important;" onclick="capturar_valores_ventas_productos(${el.id_pro},'${el.pro_nombre}','${el.id_tipo_afectacion}','${el.impuesto_bolsa}','${el.pro_precio_uni}','${el.pro_precio_uni_ma}',${el.pro_porcen_igv},${el.pro_stock},${el.id_medida},'${encodeURIComponent(el.pro_descripcion || '')}',${el.control_serie || 0})" >${el.pro_nombre} ${el.control_serie ? '<span class=\'badge bg-primary\'>Serie</span>' : ''}</a>
-                    `
+                let familiaTxt = el.fa_nombre
+                    ? `<small style="color:#07149b;margin-left:8px">${el.familia_codigo || ''} - ${el.fa_nombre}</small>`
+                    : '';
+                let serieBadge = el.control_serie ? `<span class='badge bg-primary ms-1' style='font-size:10px'>Serie</span>` : '';
+                body += `<a class="list-group-item list-group-item-action" style="cursor:pointer;padding:8px 12px" onclick="capturar_valores_ventas_productos(${el.id_pro},'${el.pro_nombre}','${el.id_tipo_afectacion}','${el.impuesto_bolsa}','${el.pro_precio_uni}','${el.pro_precio_uni_ma}',${el.pro_porcen_igv},${el.pro_stock},${el.id_medida},'${encodeURIComponent(el.pro_descripcion || '')}',${el.control_serie || 0},'${encodeURIComponent(el.pro_codigo || '')}','${encodeURIComponent(el.fa_nombre || '')}','${encodeURIComponent(el.familia_codigo || '')}')">
+                    <div style="font-weight:600;font-size:13px">${el.pro_nombre}${serieBadge}</div>
+                    <div style="margin-top:2px"><small style="font-family:monospace;color:#6b7280;font-size:11px">${el.pro_codigo || ''}</small>${familiaTxt}</div>
+                </a>`
             })
         }else{
-            body +=
-                `
-                    <a class="list-group-item list-group-item-action">Sin Registros existente</a>
-                `
+            body += `<a class="list-group-item list-group-item-action">Sin Registros existente</a>`
         }
-
-        body +=
-            `
-                    </div>
-                `
         $('#lista_productos_ventas').html(body);
     });
     $(document).click(function() {
@@ -718,12 +714,16 @@ function buscar_producto_generar_ventas(id){
 
 let _pendingProductoSerie = null;
 
-function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,precio_ma,porce_igv,stock,idmedida,descr = null, control_serie = 0){
+function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,precio_ma,porce_igv,stock,idmedida,descr = null, control_serie = 0, pro_codigo = '', fa_nombre = '', fa_codigo = ''){
 
     descr = descr || '';
     descr = decodeURIComponent(descr);
+    pro_codigo = pro_codigo ? decodeURIComponent(pro_codigo) : '';
+    fa_nombre  = fa_nombre  ? decodeURIComponent(fa_nombre)  : '';
+    fa_codigo  = fa_codigo  ? decodeURIComponent(fa_codigo)  : '';
 
-    $('#buscar_productos_ventas').val(" ");
+    $('#buscar_productos_ventas').val('');
+    $('#lista_productos_ventas').html('');
     let conteo = 1;
 
     for(let i = 0; i < ventas_prtoductos.length; i++){
@@ -741,11 +741,15 @@ function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,pre
         id_pro: id,
         id_medida: idmedida,
         nombre_producto: nombre,
+        pro_codigo: pro_codigo,
+        fa_nombre: fa_nombre,
+        fa_codigo: fa_codigo,
         id_tipo_afectacion: afectacion,
         impuesto_bolsa: bolsa,
         precio_venta: precio,
         precio_mayor: precio_ma,
         cantidad: 1,
+        descuento: 0,
         total: precio * 1,
         porcentaje_igv: porce_igv,
         stock_actual: stock,
@@ -814,33 +818,44 @@ function dibujar_tabla_ventas_productos(){
             if(parseInt(el.control_serie) === 1 && el.numero_serie){
                 serieInfo = `<br><small class="badge bg-primary">Serie: ${el.numero_serie}</small>`;
             }
+            let familiaInfo = (el.fa_nombre)
+                ? `<br><small style="color:#07149b;font-size:10px">${el.fa_codigo || ''} - ${el.fa_nombre}</small>`
+                : '';
+            let codigoInfo = (el.pro_codigo)
+                ? `<br><small style="font-family:monospace;color:#6b7280;font-size:10px">${el.pro_codigo}</small>`
+                : '';
             let cantidadInput = parseInt(el.control_serie) === 1
-                ? `<input type="number" style="width: 90px;background: none" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="1" readonly>`
-                : `<input type="number" style="width: 90px;background: none" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="${el.cantidad}" onchange="guardar_cambios_venta_productos(${index},'${el.id_pro}',${el.precio_venta},${el.precio_mayor})" onkeyup="validar_numeros(this.id)">`;
+                ? `<input type="number" style="width:80px;background:#f6f8fb" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="1" readonly>`
+                : `<input type="number" style="width:80px;background:#fff" id="cantidad_producto${index}" class="outline-none form-control" name="cantidad_producto${index}" value="${el.cantidad}" onchange="guardar_cambios_venta_productos(${index},'${el.id_pro}',${el.precio_venta},${el.precio_mayor})" onkeyup="validar_numeros(this.id)">`;
+            let ventaNeta = fmtMonto(el.total || 0);
             body+=
-                `
-                     <tr>
-                        <td>${el.nombre_producto}${serieInfo}</td>
-                        <td>
-                            <textarea class="form-control" name="descripcionDatos_${index}" id="descripcionDatos_${index}" onchange="cambiarDescripcion(${index})" rows="4">${el.descripcion && el.descripcion != 'null' ? el.descripcion : ''}</textarea>
-                        </td>
-                        <td>${el.id_medida == 58 ? el.stock_actual : '∞'}</td>
-                        <td>
-                            <input type="text" style="width: 90px;" class=" outline-none form-control " onchange="cambiarPrecioVenta(${index})" onkeyup="validar_numeros(this.id)" id="precio_venta_${index}" value="${el.cantidad >= 12 ? el.precio_mayor : el.precio_venta}">
-                        </td>
-                        <td>${cantidadInput}</td>
-                        <td><input type="text" style="width: 90px;background: none" id="total_venta_producto_${index}" disabled class="border-none outline-none" name="total_venta_producto_${index}" value="${el.total}"></td>
-                        <td>
-                            <a class="btn btn-sm text-white bg-danger" title="Eliminar" type="button" onclick="eliminar_productos_ventas(${index})"><i class="fa fa-trash"></i></a>
-                        </td>
-                    </tr>
-                    `
+                `<tr>
+                    <td>
+                        <span style="font-weight:600">${el.nombre_producto}</span>${serieInfo}${codigoInfo}${familiaInfo}
+                    </td>
+                    <td>
+                        <textarea class="form-control" name="descripcionDatos_${index}" id="descripcionDatos_${index}" onchange="cambiarDescripcion(${index})" rows="3" style="min-width:120px">${el.descripcion && el.descripcion != 'null' ? el.descripcion : ''}</textarea>
+                    </td>
+                    <td style="text-align:center">${el.id_medida == 58 ? el.stock_actual : '∞'}</td>
+                    <td>${cantidadInput}</td>
+                    <td>
+                        <input type="text" style="width:85px" class="outline-none form-control" onchange="cambiarPrecioVenta(${index})" onkeyup="validar_numeros(this.id)" id="precio_venta_${index}" value="${el.cantidad >= 12 ? el.precio_mayor : el.precio_venta}">
+                    </td>
+                    <td>
+                        <input type="number" style="width:70px" min="0" max="100" class="outline-none form-control" onchange="cambiarDescuento(${index})" onkeyup="validar_numeros(this.id)" id="descuento_prod_${index}" value="${el.descuento || 0}">
+                    </td>
+                    <td>
+                        <input type="text" style="width:85px;background:none" id="total_venta_producto_${index}" disabled class="border-none outline-none form-control" name="total_venta_producto_${index}" value="${ventaNeta}">
+                    </td>
+                    <td>
+                        <a class="btn btn-sm text-white bg-danger" title="Eliminar" type="button" onclick="eliminar_productos_ventas(${index})"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>`
             num++
         })
     }
     $('#tabla_productos_ventas').html(body);
-    calcular_afectacion()
-    $('#tablaProductoVentas').dataTable();
+    calcular_afectacion();
     $(document).ready(function(){
         $('input[type="number"]').on('input', function() {
             var valor = $(this).val();
@@ -849,22 +864,38 @@ function dibujar_tabla_ventas_productos(){
             }
         });
     });
-
 }
 function  cambiarPrecioVenta(index){
-    let cantidad = $('#cantidad_producto'+index).val();
-    let precio = $('#precio_venta_'+index).val();
+    let cantidad = parseFloat($('#cantidad_producto'+index).val()) || 1;
+    let precio = parseFloat($('#precio_venta_'+index).val()) || 0;
+    let desc = parseFloat(ventas_prtoductos[index].descuento || 0);
     if (cantidad >= 12){
-        ventas_prtoductos[`${index}`].precio_mayor = precio
+        ventas_prtoductos[`${index}`].precio_mayor = precio;
     }else{
-        ventas_prtoductos[`${index}`].precio_venta = precio
+        ventas_prtoductos[`${index}`].precio_venta = precio;
     }
-    ventas_prtoductos[`${index}`].total = parseFloat(cantidad) * parseFloat(precio)
-
-    calcular_afectacion()
-    dibujar_tabla_ventas_productos()
+    ventas_prtoductos[`${index}`].total = parseFloat((precio * cantidad * (1 - desc / 100)).toFixed(2));
+    calcular_afectacion();
+    dibujar_tabla_ventas_productos();
     localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
+}
 
+function cambiarDescuento(index){
+    let desc = parseFloat($('#descuento_prod_'+index).val());
+    if (isNaN(desc)) desc = 0;
+    if (desc > 100) {
+        respuesta('El descuento no puede superar el 100%.', 'error');
+        desc = 0;
+        $('#descuento_prod_'+index).val(0);
+    }
+    ventas_prtoductos[index].descuento = desc;
+    let cantidad = parseFloat(ventas_prtoductos[index].cantidad) || 1;
+    let precio = parseFloat(ventas_prtoductos[index].cantidad >= 12 ? ventas_prtoductos[index].precio_mayor : ventas_prtoductos[index].precio_venta) || 0;
+    let total = parseFloat((precio * cantidad * (1 - desc / 100)).toFixed(2));
+    ventas_prtoductos[index].total = total;
+    $('#total_venta_producto_'+index).val(fmtMonto(total));
+    calcular_afectacion();
+    localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
 }
 function  cambiarDescripcion(index){
     let cantidad = $('#descripcionDatos_'+index).val();
@@ -882,20 +913,25 @@ function eliminar_productos_ventas(index){
 
 function guardar_cambios_venta_productos(index,id_producto,precio_uni,precio_mayo){
     let precio = 0;
-    let cantidad = $('#cantidad_producto'+index).val();
+    let cantidad = parseFloat($('#cantidad_producto'+index).val()) || 1;
     if (cantidad >= 12){
-        precio = precio_mayo
+        precio = precio_mayo;
     }else{
-        precio = precio_uni
+        precio = precio_uni;
     }
     $('#precio_venta_'+index).val(precio);
-    let resultado = (parseFloat(cantidad) * parseFloat(precio)).toFixed(2)
-    $('#total_venta_producto_'+index).val(resultado);
-    ventas_prtoductos[`${index}`].cantidad = cantidad
-    ventas_prtoductos[`${index}`].total = resultado
-    calcular_afectacion()
+    let desc = parseFloat(ventas_prtoductos[index].descuento || 0);
+    let resultado = (parseFloat(cantidad) * parseFloat(precio) * (1 - desc / 100)).toFixed(2);
+    $('#total_venta_producto_'+index).val(fmtMonto(parseFloat(resultado)));
+    ventas_prtoductos[`${index}`].cantidad = cantidad;
+    ventas_prtoductos[`${index}`].total = parseFloat(resultado);
+    calcular_afectacion();
     localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
-
+}
+function fmtMonto(n) {
+    let parts = parseFloat(n || 0).toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
 }
 function calcular_afectacion(){
     // VAMOS A AGREGAR EL TEMA DEL VUELTO
@@ -936,6 +972,8 @@ function calcular_afectacion(){
             }else{
                 precio_final = el.precio_venta;
             }
+            // aplicar descuento por producto
+            precio_final = precio_final * (1 - (parseFloat(el.descuento || 0) / 100));
             if(el.id_tipo_afectacion == 1){
                 v += precio_final * 1;
                 let menosC = precio_final - (precio_final / el.porcentaje_igv);
@@ -978,36 +1016,35 @@ function calcular_afectacion(){
 
         v7 = total.toFixed(2);
         vuelto = total_pago_cliente - v7;
-        $('#op_exoneradas').html("+"+v4.toFixed(2));
-        $('#op_gratuitas').html("+"+v6.toFixed(2));
-        $('#op_inafectada').html("+"+v5.toFixed(2));
-        $('#op_gravada').html("+"+v3.toFixed(2));
-        $('#totaligv').html("+"+sumar_igv.toFixed(2));
-        $('#icbper').html("+"+impuesto_bolsa);
-        $('#descuento_total_display').html("-"+descuento_monto.toFixed(2));
-        $('#total_venta').html(v7);
+        $('#op_exoneradas').html("+"+fmtMonto(v4));
+        $('#op_gratuitas').html("+"+fmtMonto(v6));
+        $('#op_inafectada').html("+"+fmtMonto(v5));
+        $('#op_gravada').html("+"+fmtMonto(v3));
+        $('#totaligv').html("+"+fmtMonto(sumar_igv));
+        $('#icbper').html("+"+fmtMonto(impuesto_bolsa));
+        $('#descuento_total_display').html("-"+fmtMonto(descuento_monto));
+        $('#total_venta').html(fmtMonto(v7));
         $('#vali_partir_total').val(v7);
-        $('#monto_total_venta').html(v7);
+        $('#monto_total_venta').html(fmtMonto(v7));
         $('#calcular_monto_total_').val(v7);
         if (!isNaN(vuelto)) {
-            $('#vuelto_').html(vuelto.toFixed(2));
+            $('#vuelto_').html(fmtMonto(vuelto));
         } else {
-            $('#vuelto_').html(vuelto);
+            $('#vuelto_').html(fmtMonto(0));
         }
 
     }else{
-        // $('#icbper').html("+00.0");
-        $('#op_exoneradas').html("+00.0");
-        $('#op_gratuitas').html("+00.0");
-        $('#total_venta').html("+00.0");
-        $('#op_inafectada').html("+00.0");
-        $('#op_gravada').html("+00.0");
-        $('#icbper').html("+00.0");
-        $('#totaligv').html("+00.0");
+        $('#op_exoneradas').html("+0.00");
+        $('#op_gratuitas').html("+0.00");
+        $('#total_venta').html("0.00");
+        $('#op_inafectada').html("+0.00");
+        $('#op_gravada').html("+0.00");
+        $('#icbper').html("+0.00");
+        $('#totaligv').html("+0.00");
         $('#descuento_total_display').html("-0.00");
-        $('#vuelto_').html("+00.0");
+        $('#vuelto_').html("0.00");
         $('#vali_partir_total').val(0);
-        $('#monto_total_venta').html("00.0");
+        $('#monto_total_venta').html("0.00");
         $('#calcular_monto_total_').val(0);
         // $('#descuento_global_').html(" 0 ");
         // $('#descuento_item').html(" 0 ");

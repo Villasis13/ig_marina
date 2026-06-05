@@ -63,21 +63,51 @@
                                             <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
                                                 <b class="text-success"><?= $orden_compra->proveedores_nombre;?></b>
                                             </div>
+                                            @if($orden_compra->orden_compra_fecha_vencimiento)
+                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                                <h5 class="card-title "><i class="fa-solid fa-calendar-xmark text-primary"></i> Fecha de Vencimiento: </h5>
+                                            </div>
+                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                                <b class="text-success"><?= date("d-m-Y", strtotime($orden_compra->orden_compra_fecha_vencimiento)); ?></b>
+                                            </div>
+                                            @endif
                                         </div>
                                     </div>
                                 <div class="col-lg-6">
                                     <div class="row">
                                         <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <h5 class="card-title "><i class="fa-solid fa-clipboard-list text-primary"></i> Comprobante:   </h5>
+                                            <h5 class="card-title "><i class="fa-solid fa-clipboard-list text-primary"></i> Comprobante: </h5>
                                         </div>
                                         <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
                                             <a href="{{asset($orden_compra->orden_compra_doc_adjuntado)}}">{{$orden_compra->orden_compra_tipo_doc}}</a>
                                         </div>
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <h5 class="card-title"><i class="fa-solid fa-handshake text-primary"></i> Condición: </h5>
+                                        </div>
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <b class="text-success">{{ $orden_compra->orden_compra_condicion == 1 ? 'Crédito' : 'Contado' }}</b>
+                                        </div>
+                                        @if($orden_compra->orden_compra_guia_remicion)
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <h5 class="card-title"><i class="fa-solid fa-file-lines text-primary"></i> Guía de Remisión: </h5>
+                                        </div>
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <b class="text-success">{{ $orden_compra->orden_compra_guia_remicion }}</b>
+                                        </div>
+                                        @endif
+                                        @if($orden_compra->orden_compra_guia_transportista)
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <h5 class="card-title"><i class="fa-solid fa-truck text-primary"></i> Guía Transportista: </h5>
+                                        </div>
+                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
+                                            <b class="text-success">{{ $orden_compra->orden_compra_guia_transportista }}</b>
+                                        </div>
+                                        @endif
                                         <div class="col-lg-12 col-md-12 col-sm-12 mb-2 ">
-                                            <h5 class="card-title"><i class="fa-solid fa-sack-dollar text-primary"></i> Total En <b class="text-warning">{{$orden_compra->tipo_pago_nombre}}</b>:  </h5>
+                                            <h5 class="card-title"><i class="fa-solid fa-sack-dollar text-primary"></i> Total En <b class="text-warning">{{$orden_compra->tipo_pago_nombre}}</b>: </h5>
                                         </div>
                                         <div class="col-lg-12 col-md-12 col-sm-12 mb-2 ">
-                                            <h3 class="text-danger">S/ {{round($total + $orden_compra->orden_compra_flete + $orden_compra->orden_compra_gastos_operativos,2)}}</h3>
+                                            <h3 class="text-danger">S/ {{ number_format($total + $orden_compra->orden_compra_flete + $orden_compra->orden_compra_gastos_operativos, 2) }}</h3>
                                         </div>
                                     </div>
                                 </div>
@@ -93,14 +123,10 @@
                                 <thead>
                                     <tr>
                                         <th>#</th>
-                                        <th>PRODUCTO</th>
+                                        <th>Producto</th>
+                                        <th>Familia</th>
                                         <th>Cantidad Solicitada</th>
                                         <th>Precio Unit</th>
-{{--                                        @if($orden_compra->orden_compra_tipo_doc != 'RECIBO POR HONORARIOS')--}}
-{{--                                            <th>Flete </th>--}}
-{{--                                            <th>Gastos operativos </th>--}}
-{{--                                        @endif--}}
-
                                         <th>Total</th>
                                     </tr>
                                 </thead>
@@ -108,16 +134,23 @@
                                 @php $a =1; @endphp
                                 @foreach($detalle_orden_compra as $de)
                                     <tr>
-                                        <td>{{$a}}</td>
-                                        <td>{{$de->detalle_orden_nombre_producto}}</td>
-                                        <td>{{$de->detalle_compra_cantidad}}</td>
-                                        <td>S/ {{$de->detalle_compra_precio_compra}}</td>
-{{--                                        @if($orden_compra->orden_compra_tipo_doc != 'RECIBO POR HONORARIOS')--}}
-{{--                                            <td>S/ {{$de->flete}}</td>--}}
-{{--                                            <td>S/ {{$de->gasto}}</td>--}}
-{{--                                        @endif--}}
-
-                                        <td>S/ {{$de->detalle_compra_total_pedido}}</td>
+                                        <td>{{ $a }}</td>
+                                        <td>
+                                            {{ $de->detalle_orden_nombre_producto }}
+                                            @if($de->pro_codigo)
+                                                <br><small class="text-muted">{{ $de->pro_codigo }}</small>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($de->fa_nombre)
+                                                {{ $de->familia_codigo }} - {{ $de->fa_nombre }}
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $de->detalle_compra_cantidad }}</td>
+                                        <td>S/ {{ number_format($de->detalle_compra_precio_compra, 2) }}</td>
+                                        <td>S/ {{ number_format($de->detalle_compra_total_pedido, 2) }}</td>
                                     </tr>
                                     @php $a++; @endphp
                                 @endforeach
