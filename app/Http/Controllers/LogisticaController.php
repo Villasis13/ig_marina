@@ -29,7 +29,7 @@ use App\Models\Tipo_documento;
 use App\Models\Tipo_pago;
 use App\Models\Tipo_venta;
 use App\Models\User;
-use Codedge\Fpdf\Fpdf\Fpdf;
+use App\Utils\CustomFpdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -154,7 +154,7 @@ class LogisticaController extends Controller
                 foreach($detalle_orden as $d){
                     $total+=$d->detalle_compra_total_pedido;
                 }
-                $pdf = new FPDF('P');
+                $pdf = new CustomFpdf('P');
                 $pdf->SetMargins(5, 7, 5);
                 $pdf->AddPage();
                 $pdf->AliasNbPages();
