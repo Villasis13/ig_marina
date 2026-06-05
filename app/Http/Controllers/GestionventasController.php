@@ -35,7 +35,7 @@ use App\Models\Ventas;
 use App\Models\Lotes;
 use App\Models\Series;
 use App\Models\Ventas_detalle_pago;
-use Codedge\Fpdf\Fpdf\Fpdf;
+use App\Utils\CustomFpdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1086,7 +1086,7 @@ class GestionventasController extends Controller
                 ->where('id_empresa','=',1)->first();
 
 
-            $pdf = new FPDF('P');
+            $pdf = new CustomFpdf('P');
             $pdf->AddPage();
             //CABECERA DEL ARCHIVO
             if (file_exists($empresa->empresa_foto_ticket)) {
@@ -1358,7 +1358,7 @@ class GestionventasController extends Controller
 
             //Define el marcador de posición usado para insertar el número total de páginas en el documento
             //require 'app/view/pdf/fpdf/fpdf.php';
-            $pdf = new FPDF('P');
+            $pdf = new CustomFpdf('P');
             $pdf->AddPage();
             //CABECERA DEL ARCHIVO
             if (file_exists($empresa->empresa_foto_ticket)) {
@@ -1596,7 +1596,7 @@ class GestionventasController extends Controller
 
             //Define el marcador de posición usado para insertar el número total de páginas en el documento
             //require 'app/view/pdf/fpdf/fpdf.php';
-            $pdf = new FPDF('P');
+            $pdf = new CustomFpdf('P');
             $pdf->AddPage();
             //CABECERA DEL ARCHIVO
             if (file_exists($empresa->empresa_foto_ticket)) {
@@ -1814,7 +1814,7 @@ class GestionventasController extends Controller
             // Calcula la altura total
             $altura_total = $altura_base + ($altura_por_registro * ($filas_detalle - 1));
             // Crea el PDF con la altura total dinámica
-            $pdf = new FPDF('P', 'mm', array(80, $altura_total));
+            $pdf = new CustomFpdf('P', 'mm', array(80, $altura_total));
 //            if($filas_detalle==1 || $filas_detalle==2){
 //                $pdf = new FPDF('P','mm',array(80,220));
 //            }elseif($filas_detalle==3 || $filas_detalle==4){
