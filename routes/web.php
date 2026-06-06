@@ -154,8 +154,10 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::match(['GET','POST'],'/pendientes_guia',[LogisticaController::class ,'pendientes_guia'])->name('logistica.pendientes_guia');
     route::match(['GET','POST'],'/historial_guia',[LogisticaController::class ,'historial_guia'])->name('logistica.historial_guia');
     route::post('/guardar_guia',[LogisticaController::class ,'guardar_guia'])->name('logistica.guardar_guia');
+    route::post('/buscar_venta_guia',[LogisticaController::class ,'buscar_venta_guia'])->name('logistica.buscar_venta_guia');
     route::post('/enviar_guia_sunat',[LogisticaController::class ,'enviar_guia_sunat'])->name('logistica.enviar_guia_sunat');
     route::post('/eliminar_guia',[LogisticaController::class ,'eliminar_guia'])->name('logistica.eliminar_guia');
+    route::get('/imprimir_guia_pdf',[LogisticaController::class ,'imprimir_guia_pdf'])->name('logistica.imprimir_guia_pdf');
 });
 Route::prefix('Gestionventas')->middleware('auth')->group(function () {
     // Rutas del grupo

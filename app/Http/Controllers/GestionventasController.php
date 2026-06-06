@@ -1322,8 +1322,7 @@ class GestionventasController extends Controller
                 }
                 $formas_de_pago_mensaje.= $for->tipo_pago_nombre.$c;
             }
-            $fecha_hoy = $dato_venta->venta_fecha;
-//            $fecha_hoy = date('d-m-Y H:i:s');
+            $fecha_hoy = date('Y-m-d', strtotime($dato_venta->venta_fecha));
             $empresa = $this->empresa->listar_datos_empresa();
             $ruta_qr = $this->general->generar_qr($dato_venta->id_venta);
             $dnni = "";
@@ -1533,7 +1532,7 @@ class GestionventasController extends Controller
             $pdf->SetFont('Helvetica', '', 7);
             $pdf->Cell(70,3,utf8_decode('BIENES TRANSFERIDOS EN LA AMAZONÍA REGIÓN SELVA '),0,0,'C');
             $pdf->SetFont('Helvetica', 'B', 9);
-            $pdf->Cell(110, 1, "TOTAL: $dato_venta->simbolo $dato_venta->venta_total", 0,'1','R');
+            $pdf->Cell(110, 1, "TOTAL: $dato_venta->simbolo ".number_format($dato_venta->venta_total, 2, '.', ','), 0,'1','R');
             $pdf->Ln(2);
             $pdf->SetFont('Helvetica', '', 7);
             $pdf->Cell(70,3,utf8_decode('PARA SER CONSUMIDOS EN LA MISMA'),0,0,'C');
@@ -1809,8 +1808,7 @@ class GestionventasController extends Controller
                 }
                 $formas_de_pago_mensaje.= $for->tipo_pago_nombre.$c;
             }
-            $fecha_hoy = $dato_venta->venta_fecha;
-//            $fecha_hoy = date('d-m-Y H:i:s');
+            $fecha_hoy = date('Y-m-d', strtotime($dato_venta->venta_fecha));
 //                $empresa = $this->empresas->listar_datos_empresa($dato_venta->id_empresa);
             $ruta_qr = $this->general->generar_qr($dato_venta->id_venta);
 
@@ -1842,7 +1840,7 @@ class GestionventasController extends Controller
             $dato_impresion = 'DETALLE DE VENTA:';
             $filas_detalle = count($detalle_venta);
             // Altura base (puedes ajustarla según tus necesidades)
-            $altura_base = 200; // mm
+            $altura_base = 215; // mm (incluye leyenda amazonia)
             // Altura adicional por registro (puedes ajustarla según tus necesidades)
             $altura_por_registro = 15; // mm
             // Calcula la altura total
@@ -1893,7 +1891,7 @@ class GestionventasController extends Controller
 
             $pdf->Cell(60,4,"$documento",0,1,'');
             $pdf->MultiCell(60,4,utf8_decode("DIRECCIÓN:          ").utf8_decode($dato_venta->cliente_direccion),0,1,'');
-            $pdf->Cell(60,4,"FECHA:                  ".date('d-m-Y H:i:s', strtotime($dato_venta->venta_fecha)),0,1,'');
+            $pdf->Cell(60,4,"FECHA:                  ".date('Y-m-d', strtotime($dato_venta->venta_fecha)),0,1,'');
             $pdf->Cell(60,4,"TIPO DE PAGO:    ".$formas_de_pago_mensaje,0,1,'');
             $pdf->SetMargins(10,'');
             $pdf->Cell(60,4,"$dato_impresion",1,1,'C');
@@ -1956,23 +1954,18 @@ class GestionventasController extends Controller
 
             $pdf->SetFont('Helvetica', 'B', 7);
             $pdf->Ln();
-            $pdf->Cell(60, 1.5, "TOTAL: $dato_venta->simbolo $dato_venta->venta_total", 0,'1','R');
+            $pdf->Cell(60, 1.5, "TOTAL: $dato_venta->simbolo ".number_format($dato_venta->venta_total, 2, '.', ','), 0,'1','R');
             $pdf->Ln();
             $pdf->Cell(60, 1.5, "$importe_letra", 0,'1','R');
 // PIE DE PAGINA
             $pdf->Ln(2);
             $pdf->Image("$ruta_qr", '8', $pdf->GetY() , '20', '20', '', '');
 
-            // PIE DE PAGINA
-            $pdf->Ln(3);
-            $pdf->SetFont('Helvetica', '', 6.5);
-            //$pdf->Cell(60,0,"$qrcode",0,1,'C');
-            $pdf->Ln(2);
-            $pdf->Cell(60,0,utf8_decode(''),0,1,'R');
-            $pdf->Ln(3);
-            $pdf->Cell(60,0,utf8_decode(''),0,1,'R');
-            $pdf->Ln(3);
-            $pdf->Cell(60,0,'',0,1,'R');
+            // Leyenda amazonia debajo del QR
+            $pdf->Ln(22);
+            $pdf->SetFont('Helvetica', '', 6);
+            $pdf->Cell(60, 3, utf8_decode('BIENES TRANSFERIDOS EN LA AMAZONIA'), 0, 1, 'C');
+            $pdf->Cell(60, 3, utf8_decode('REGION SELVA PARA SER CONSUMIDOS EN LA MISMA'), 0, 1, 'C');
             $pdf->Ln(3);
 //$pdf->Cell(60,0,'comprobante en www.sunat.gob.pe',0,1,'R');
 //                $pdf->Ln(10);
