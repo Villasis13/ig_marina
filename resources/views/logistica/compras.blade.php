@@ -1,6 +1,71 @@
 
 @extends('layouts.plantilla')
 @section('content')
+<style>
+.oc-search-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+}
+.oc-search-wrap { position: relative; }
+.oc-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 13px;
+  pointer-events: none;
+}
+.oc-search-input {
+  width: 100%;
+  padding: 9px 13px 9px 34px;
+  font-size: 13.5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #1e293b;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+.oc-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+  background: #fff;
+}
+.oc-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(15,23,42,.13);
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+}
+.oc-dropdown.open { display: block; }
+.oc-drop-item {
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .12s;
+}
+.oc-drop-item:last-child { border-bottom: none; }
+.oc-drop-item:hover { background: #eff6ff; }
+.oc-drop-name  { font-size: 13px; font-weight: 600; color: #1e293b; }
+.oc-drop-meta  { font-size: 11px; color: #64748b; margin-top: 2px; }
+.oc-drop-code  { font-family: monospace; color: #6b7280; }
+.oc-drop-fam   { color: #2563eb; margin-left: 6px; }
+.oc-drop-empty { padding: 12px 14px; font-size: 13px; color: #64748b; font-style: italic; }
+</style>
     <!-- Modal -->
 {{--<div class="modal fade" id="modal_crear_productos" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">--}}
 {{--    <div class="modal-dialog">--}}
@@ -198,12 +263,12 @@
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="row">
                                                     <div class="col-lg-12 col-md-12 col-sm-12">
-                                                        <label for="productos_orden_compra" class="fw-semibold"><i class="bx bx-search"></i> Buscar Productos</label>
-                                                        <input type="text" name="productos_orden_compra" id="productos_orden_compra" placeholder="Ingrese Información..." class="form-control  p-1">
-                                                        <div class="shadow" style="z-index: 999; position: absolute; width: 60%;">
-                                                            <div class="list-group list-group-flush bg-white" style="max-height: 320px; overflow-y: auto;" id="listar_productos_orden_compra">
-
-                                                            </div>
+                                                        <label class="oc-search-label"><i class="fa-solid fa-magnifying-glass"></i> Buscar Productos</label>
+                                                        <div class="oc-search-wrap">
+                                                            <i class="fa-solid fa-magnifying-glass oc-search-icon"></i>
+                                                            <input type="text" name="productos_orden_compra" id="productos_orden_compra"
+                                                                   class="oc-search-input" placeholder="Buscar por nombre o código…" autocomplete="off">
+                                                            <div id="oc_productos_dropdown" class="oc-dropdown"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -288,12 +353,4 @@
 </div>
 <script src="{{asset('js/domain.js')}}"></script>
 <script src="{{asset('js/logistica.js')}}"></script>
-    <script>
-        window.addEventListener('load', function() {
-            if(localStorage.getItem('productos_orden_compra')) {
-                array_orden_compra = JSON.parse(localStorage.getItem('productos_orden_compra'));
-                dibujar_tabla_productos_orden_compra(); // Esto asegura que se dibuje la tabla con los datos recuperados
-            }
-        });
-    </script>
 @endsection

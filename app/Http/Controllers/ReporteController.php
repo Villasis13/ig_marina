@@ -60,150 +60,205 @@ class ReporteController extends Controller
     public function ventas_por_caja(Request $request)
     {
         try {
-            // Sacamos la información del dueño
-//            $datos_usuario = $this->usuarios->listar_datos_usuario(Auth::id());
-            $empresas = "";
-            $infoEmpre = "";
-            $id_empresa = "";
-            $check = "d";
-            $cajas = [];
-            $fecha_inicio = date('Y-m-d');
-            $fecha_fin = date('Y-m-d');
-            $consultorios = "";
+            $check         = 'd';
+            $fecha_inicio  = date('Y-m-d');
+            $fecha_fin     = date('Y-m-d');
+            $id_caja_numero = null;
+            $reporte       = null;
+            $searched      = false;
 
-//            if($datos_usuario->id == 1){
-//                // superadmin
-//                $empresas =  $this->empresas->listar_empresas();
-//                $id_empresa = !isset($_GET['id_empresa']) ? null : $_GET['id_empresa'];
-//                if($id_empresa){
-//                    $infoEmpre = $this->empresas->listar_datos_empresa($id_empresa);
-//                }
-//            }elseif ($datos_usuario->id == 2 || $datos_usuario->id == 5 || $datos_usuario->id == 6){
-//                $sucursales = $this->user_sucursal->listar_sucursales_usuario(Auth::id());
-//                $id_empresa = $sucursales[0]->id_empresa;
-//            }
-            if (isset($request->enviar)){
-                $fecha_inicio = $request->desde;
-                $fecha_fin = $request->hasta;
-                $check = $request->opcion;
-//                $id_empresa = $request->id_empresa;
-            }
-            $cajas = DB::table('caja')
-                ->join('caja_numero','caja_numero.id_caja_numero','=','caja.id_caja_numero')
-//                ->join('empresa','empresa.id_empresa','=','sucursals.id_empresa')
-                ->join('users', 'caja.id_users_apertura','=','users.id_users')
-                ->join('persona','persona.id_persona','=','users.id_persona')
-                ->where('caja.caja_fecha','>=',$fecha_inicio)
-                ->where('caja.caja_fecha','<=',$fecha_fin)
-//                ->whereBetween('caja.caja_fecha',[$fecha_inicio,$fecha_fin])
-
-//                ->where('empresa.id_empresa','=',$id_empresa)
+            $cajas_disponibles = DB::table('caja_numero')
+                ->orderBy('caja_numero_nombre')
                 ->get();
-            foreach ($cajas as $c){
-                $fecha_i_b = $c->caja_fecha_apertura ;
-                $fecha_f_b = ($c->caja_estado == 0)? $c->caja_fecha_cierre : date('Y-m-d H:i:s');
 
-                $ventas = DB::table('ventas as v')
-                    ->where('v.id_caja_numero','=',$c->id_caja_numero)
-//                    ->whereBetween('v.venta_fecha',[$fecha_i_b,$fecha_f_b])
-                    ->where('v.venta_fecha','>=',$fecha_i_b)
-                    ->where('v.venta_fecha','<=',$fecha_f_b)
-                    ->where([['v.anulado_sunat','=',0],['v.venta_cancelar','=',1],['v.id_formas_pago','=',1]])
-                    ->whereIn('v.venta_tipo', ['01', '03']) // Utiliza whereIn para incluir múltiples valores
-                    ->get();
-
-                $sum = 0;
-                 foreach ($ventas as $v)
-                 {
-                     $sum += $v->venta_total;
-                 }
-
-                $pagos = DB::table('tipo_pago')
-                    ->where('tipo_pago_estado','=',1)->get();
-                 $total_efectivo = 0;
-                foreach ($pagos as $p){
-                    $dt = 0;
-                    $pagosVentas = DB::table('ventas_detalle_pagos as vd')
-                        ->join('ventas as v','v.id_venta','=','vd.id_venta')
-//                        ->whereBetween('v.venta_fecha',[$fecha_i_b,$fecha_f_b])
-                        ->where('v.venta_fecha','>=',$fecha_i_b)
-                        ->where('v.venta_fecha','<=',$fecha_f_b)
-//                        ->where('v.venta_fecha','>=',$fecha_i_b)
-//                        ->where('v.venta_fecha','<=',$fecha_f_b)
-                        ->where([['v.id_caja_numero','=',$c->id_caja_numero],['vd.id_tipo_pago','=',$p->id_tipo_pago],['v.anulado_sunat','=',0],['v.venta_cancelar','=',1],['v.id_formas_pago','=',1]])
-                        ->whereIn('v.venta_tipo', ['01', '03']) // Utiliza whereIn para incluir múltiples valores
-                        ->get();
-                    foreach ($pagosVentas as $v){
-                        $dt  += $v->venta_detalle_pago_monto;
-                        if ($v->id_tipo_pago == 1){
-                            $total_efectivo += $v->venta_detalle_pago_monto;
-                        }
-                    }
-                    $p->sum_pago = $dt ? : 0;
-                }
-                $c->sumventas = $sum;
-                $c->pagos = $pagos;
-                $c->montoEfectivo = $total_efectivo;
+            if (isset($request->enviar)) {
+                $request->validate(['desde' => 'required', 'hasta' => 'required', 'opcion' => 'required']);
+                $fecha_inicio   = $request->desde;
+                $fecha_fin      = $request->hasta;
+                $check          = $request->opcion;
+                $id_caja_numero = $request->input('id_caja_numero') ? (int)$request->input('id_caja_numero') : null;
+                $searched       = true;
+                $reporte        = $this->_calcular_reporte_caja($fecha_inicio, $fecha_fin, $id_caja_numero);
             }
+
             $opciones = $this->submenu->optiones_por_vista("ventas_por_caja");
-            return view('reporte/ventas_por_caja', compact('opciones','fecha_inicio','check','infoEmpre','cajas','fecha_fin','empresas','id_empresa','consultorios'));
-        }catch (\Exception $e){
+            return view('reporte/ventas_por_caja', compact(
+                'opciones', 'fecha_inicio', 'fecha_fin', 'check',
+                'cajas_disponibles', 'id_caja_numero', 'reporte', 'searched'
+            ));
+        } catch (\Exception $e) {
             $this->logs->insertarLog($e);
             echo "<script>
                 alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
                 window.location.href = '" . route('admin') . "';
             </script>";
         }
+    }
 
+    private function _calcular_reporte_caja(string $desde, string $hasta, ?int $id_caja_numero): ?array
+    {
+        $q = DB::table('caja as c')
+            ->join('caja_numero as cn', 'cn.id_caja_numero', '=', 'c.id_caja_numero')
+            ->join('users as ua', 'ua.id_users', '=', 'c.id_users_apertura')
+            ->join('persona as pa', 'pa.id_persona', '=', 'ua.id_persona')
+            ->leftJoin('users as uc', 'uc.id_users', '=', 'c.id_users_cierre')
+            ->leftJoin('persona as pc', 'pc.id_persona', '=', 'uc.id_persona')
+            ->where('c.caja_fecha', '>=', $desde)
+            ->where('c.caja_fecha', '<=', $hasta);
+        if ($id_caja_numero) $q->where('c.id_caja_numero', $id_caja_numero);
+
+        $turnos = $q->select(
+            'c.*',
+            'cn.caja_numero_nombre',
+            DB::raw("CONCAT(pa.persona_nombre, ' ', pa.persona_apellido_paterno) as nombre_apertura"),
+            DB::raw("TRIM(CONCAT(IFNULL(pc.persona_nombre,''), ' ', IFNULL(pc.persona_apellido_paterno,''))) as nombre_cierre")
+        )->orderBy('c.caja_fecha')->orderBy('c.caja_fecha_apertura')->get();
+
+        if ($turnos->isEmpty()) return null;
+
+        $idsCaja = $id_caja_numero
+            ? [$id_caja_numero]
+            : $turnos->pluck('id_caja_numero')->unique()->values()->toArray();
+
+        $ventasPorMedio = DB::table('ventas_detalle_pagos as vdp')
+            ->select('tp.tipo_pago_nombre', DB::raw('SUM(vdp.venta_detalle_pago_monto) as total'))
+            ->join('ventas as v', 'v.id_venta', '=', 'vdp.id_venta')
+            ->join('tipo_pago as tp', 'tp.id_tipo_pago', '=', 'vdp.id_tipo_pago')
+            ->whereIn('v.id_caja_numero', $idsCaja)
+            ->whereDate('v.venta_fecha', '>=', $desde)
+            ->whereDate('v.venta_fecha', '<=', $hasta)
+            ->where([['v.anulado_sunat', 0], ['v.venta_cancelar', 1], ['v.id_formas_pago', 1]])
+            ->whereIn('v.venta_tipo', ['01', '03'])
+            ->groupBy('tp.id_tipo_pago', 'tp.tipo_pago_nombre')
+            ->orderByDesc('total')
+            ->get();
+
+        $totalVentas   = round((float)$ventasPorMedio->sum('total'), 2);
+        $montoApertura = round((float)$turnos->sum('caja_apertura'), 2);
+        $montoCierre   = round((float)$turnos->sum('caja_cierre'), 2);
+
+        $tipoEfectivo = DB::table('tipo_pago')
+            ->where('tipo_pago_estado', 1)
+            ->where('tipo_pago_nombre', 'like', '%efectivo%')
+            ->first();
+        $ventasEfectivo = $tipoEfectivo
+            ? round((float) DB::table('ventas_detalle_pagos as vdp')
+                ->join('ventas as v', 'v.id_venta', '=', 'vdp.id_venta')
+                ->whereIn('v.id_caja_numero', $idsCaja)
+                ->whereDate('v.venta_fecha', '>=', $desde)
+                ->whereDate('v.venta_fecha', '<=', $hasta)
+                ->where([['v.anulado_sunat', 0], ['v.venta_cancelar', 1], ['v.id_formas_pago', 1]])
+                ->whereIn('v.venta_tipo', ['01', '03'])
+                ->where('vdp.id_tipo_pago', $tipoEfectivo->id_tipo_pago)
+                ->sum('vdp.venta_detalle_pago_monto'), 2)
+            : 0.0;
+
+        $notasCredito = round((float) DB::table('ventas as v')
+            ->whereIn('v.id_caja_numero', $idsCaja)
+            ->whereDate('v.venta_fecha', '>=', $desde)
+            ->whereDate('v.venta_fecha', '<=', $hasta)
+            ->where('v.venta_tipo', '07')
+            ->sum('v.venta_total'), 2);
+
+        $totalSistema = round($montoApertura + $ventasEfectivo - $notasCredito, 2);
+        $diferencia   = round($montoCierre - $totalSistema, 2);
+
+        $comprobantes = DB::table('ventas as v')
+            ->select(
+                'v.id_venta', 'v.venta_tipo', 'v.venta_serie', 'v.venta_correlativo',
+                'v.venta_total', 'v.venta_fecha', 'cn2.caja_numero_nombre',
+                DB::raw("CASE WHEN cl.id_tipo_documento = 4 THEN cl.cliente_razonsocial ELSE cl.cliente_nombre END as cliente_nombre"),
+                'cl.cliente_numero'
+            )
+            ->join('clientes as cl', 'cl.id_clientes', '=', 'v.id_clientes')
+            ->join('caja_numero as cn2', 'cn2.id_caja_numero', '=', 'v.id_caja_numero')
+            ->whereIn('v.id_caja_numero', $idsCaja)
+            ->whereDate('v.venta_fecha', '>=', $desde)
+            ->whereDate('v.venta_fecha', '<=', $hasta)
+            ->where([['v.anulado_sunat', 0], ['v.venta_cancelar', 1], ['v.id_formas_pago', 1]])
+            ->whereIn('v.venta_tipo', ['01', '03'])
+            ->orderBy('v.venta_fecha')
+            ->orderBy('v.venta_serie')
+            ->orderBy('v.venta_correlativo')
+            ->get();
+
+        $nombreCaja = $id_caja_numero
+            ? ($turnos->first()->caja_numero_nombre ?? 'Caja')
+            : 'Todas las cajas';
+
+        $resumen = (object)[
+            'monto_apertura'  => $montoApertura,
+            'total_ventas'    => $totalVentas,
+            'ventas_efectivo' => $ventasEfectivo,
+            'notas_credito'   => $notasCredito,
+            'total_sistema'   => $totalSistema,
+            'monto_cierre'    => $montoCierre,
+            'diferencia'      => $diferencia,
+            'total_turnos'    => $turnos->count(),
+            'turnos_abiertos' => $turnos->where('caja_estado', 1)->count(),
+        ];
+
+        return compact('turnos', 'resumen', 'ventasPorMedio', 'comprobantes', 'nombreCaja');
     }
     public function reporte_de_productos(Request $request)
     {
         try {
-            // Sacamos la información del dueño
-            $datos_usuario = $this->usuarios->listar_datos_usuario(Auth::id());
-            $check = "d";
-            $fecha_inicio = date('Y-m-d');
-            $fecha_fin = date('Y-m-d');
-            $consultorios = "";
-            $productos = [];
+            $datos_usuario  = $this->usuarios->listar_datos_usuario(Auth::id());
+            $check          = "d";
+            $fecha_inicio   = date('Y-m-d');
+            $fecha_fin      = date('Y-m-d');
+            $consultorios   = "";
+            $productos      = [];
+            $searched       = false;
+            $id_pro_filtro  = null;
+            $pro_filtro_nombre = null;
+            $pro_filtro_codigo = null;
 
+            if (isset($request->enviar)) {
+                $request->validate(['desde' => 'required', 'hasta' => 'required', 'opcion' => 'required']);
 
-            if (isset($request->enviar)){
-                $validateData = $request->validate([
-                    'desde'=>'required',
-                    'hasta'=>'required',
-                    'opcion'=>'required',
-                ]);
-                if ($validateData){
-                    $fecha_inicio = $_POST['desde'];
-                    $fecha_fin = $_POST['hasta'];
-                    $check = $_POST['opcion'];
-                    $productos = DB::table('productos')->where([['impuesto_bolsa','=',0],['pro_estado','=',1]])->get()->all();
-                    foreach ($productos as $pro){
-                        $pro->mas_vendidos = DB::table('ventas as v')
-                            ->join('ventas_detalle as vd','vd.id_venta','=','v.id_venta')
-                            ->whereDate('v.venta_fecha','>=',$fecha_inicio)
-                            ->whereDate('v.venta_fecha','<=',$fecha_fin)
-                            ->where([['vd.id_pro','=',$pro->id_pro],['v.anulado_sunat','=',0],['v.venta_cancelar','=',1],['v.id_formas_pago','=',1]])->count();
-                    }
-                    // Ordena los productos por mas_vendidos de mayor a menor
-                    usort($productos, function($a, $b) {
-                        return $b->mas_vendidos <=> $a->mas_vendidos;
-                    });
+                $fecha_inicio  = $request->desde;
+                $fecha_fin     = $request->hasta;
+                $check         = $request->opcion;
+                $id_pro_filtro = $request->input('id_pro_filtro') ?: null;
+                $searched      = true;
+
+                $query = DB::table('productos')->where([['impuesto_bolsa', '=', 0], ['pro_estado', '=', 1]]);
+                if ($id_pro_filtro) {
+                    $query->where('id_pro', $id_pro_filtro);
                 }
+                $productos = $query->get()->all();
 
+                foreach ($productos as $pro) {
+                    $pro->mas_vendidos = DB::table('ventas as v')
+                        ->join('ventas_detalle as vd', 'vd.id_venta', '=', 'v.id_venta')
+                        ->whereDate('v.venta_fecha', '>=', $fecha_inicio)
+                        ->whereDate('v.venta_fecha', '<=', $fecha_fin)
+                        ->where([['vd.id_pro', '=', $pro->id_pro], ['v.anulado_sunat', '=', 0], ['v.venta_cancelar', '=', 1], ['v.id_formas_pago', '=', 1]])
+                        ->count();
+                }
+                usort($productos, fn($a, $b) => $b->mas_vendidos <=> $a->mas_vendidos);
+
+                if ($id_pro_filtro) {
+                    $pro_info = DB::table('productos')->where('id_pro', $id_pro_filtro)->first();
+                    $pro_filtro_nombre = $pro_info->pro_nombre ?? null;
+                    $pro_filtro_codigo = $pro_info->pro_codigo ?? null;
+                }
             }
 
             $opciones = $this->submenu->optiones_por_vista("reporte_de_productos");
-            return view('reporte/reporte_de_productos', compact('opciones','productos','check','fecha_inicio','fecha_fin','datos_usuario','consultorios'));
-        }catch (\Exception $e){
+            return view('reporte/reporte_de_productos', compact(
+                'opciones', 'productos', 'check', 'fecha_inicio', 'fecha_fin',
+                'datos_usuario', 'consultorios', 'searched',
+                'id_pro_filtro', 'pro_filtro_nombre', 'pro_filtro_codigo'
+            ));
+        } catch (\Exception $e) {
             $this->logs->insertarLog($e);
             echo "<script>
                 alert(\"Error Al Mostrar Contenido. Redireccionando Al Inicio\");
                 window.location.href = '" . route('admin') . "';
             </script>";
         }
-
     }
     public function buscar_clientes_reporte(Request $request)
     {
@@ -719,21 +774,29 @@ class ReporteController extends Controller
         try {
             $check = 'd'; $fecha_inicio = date('Y-m-d'); $fecha_fin = date('Y-m-d');
             $stock = []; $vendidos = []; $entradas = []; $salidas = []; $buscado = false;
+            $id_pro_filtro = null; $pro_filtro_nombre = null; $pro_filtro_codigo = null;
             if (isset($request->enviar)) {
                 $request->validate(['desde'=>'required','hasta'=>'required','opcion'=>'required']);
                 $fecha_inicio = $request->desde; $fecha_fin = $request->hasta; $check = $request->opcion; $buscado = true;
-                $d = $this->_inventarioData($fecha_inicio, $fecha_fin);
+                $id_pro_filtro = $request->input('id_pro_filtro') ?: null;
+                $d = $this->_inventarioData($fecha_inicio, $fecha_fin, $id_pro_filtro ? (int)$id_pro_filtro : null);
                 $stock = $d['stock']; $vendidos = $d['vendidos']; $entradas = $d['entradas']; $salidas = $d['salidas'];
+                if ($id_pro_filtro) {
+                    $pro_info = DB::table('productos')->where('id_pro', $id_pro_filtro)->first();
+                    $pro_filtro_nombre = $pro_info->pro_nombre ?? null;
+                    $pro_filtro_codigo = $pro_info->pro_codigo ?? null;
+                }
             }
             $opciones = $this->submenu->optiones_por_vista("proveedores_reporte");
-            return view('reporte/reporte_inventario', compact('opciones','check','fecha_inicio','fecha_fin','stock','vendidos','entradas','salidas','buscado'));
+            return view('reporte/reporte_inventario', compact('opciones','check','fecha_inicio','fecha_fin','stock','vendidos','entradas','salidas','buscado','id_pro_filtro','pro_filtro_nombre','pro_filtro_codigo'));
         } catch (\Exception $e) { $this->logs->insertarLog($e); echo "<script>alert('Error al mostrar inventario'); window.location.href='".route('admin')."';</script>"; }
     }
 
     public function reporte_inventario_excel(Request $request)
     {
         $fi = $request->get('desde', date('Y-m-d')); $ff = $request->get('hasta', date('Y-m-d'));
-        $d  = $this->_inventarioData($fi, $ff);
+        $id_pro = $request->get('id_pro') ? (int)$request->get('id_pro') : null;
+        $d  = $this->_inventarioData($fi, $ff, $id_pro);
         $spreadsheet = new Spreadsheet(); $hc = '0b1892';
         $msg = 'Del '.date('d/m/Y',strtotime($fi)).' al '.date('d/m/Y',strtotime($ff));
 
@@ -785,29 +848,37 @@ class ReporteController extends Controller
     public function reporte_inventario_pdf(Request $request)
     {
         $fi=$request->get('desde',date('Y-m-d')); $ff=$request->get('hasta',date('Y-m-d'));
-        $d=$this->_inventarioData($fi,$ff);
+        $id_pro=$request->get('id_pro') ? (int)$request->get('id_pro') : null;
+        $d=$this->_inventarioData($fi,$ff,$id_pro);
         return view('reporte/pdf_inventario', array_merge($d,['fecha_inicio'=>$fi,'fecha_fin'=>$ff]));
     }
 
-    private function _inventarioData($fi,$ff)
+    private function _inventarioData($fi,$ff,?int $id_pro=null)
     {
-        $stock = DB::table('productos')->where([['pro_estado',1],['impuesto_bolsa',0]])->orderByDesc('pro_stock')->get();
-        $vendidos = DB::table('ventas_detalle as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')->join('productos as p','p.id_pro','=','vd.id_pro')
+        $q = DB::table('productos')->where([['pro_estado',1],['impuesto_bolsa',0]]);
+        if ($id_pro) $q->where('id_pro',$id_pro);
+        $stock = $q->orderByDesc('pro_stock')->get();
+        $qv = DB::table('ventas_detalle as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')->join('productos as p','p.id_pro','=','vd.id_pro')
             ->whereDate('v.venta_fecha','>=',$fi)->whereDate('v.venta_fecha','<=',$ff)
-            ->where([['v.anulado_sunat',0],['v.venta_cancelar',1]])->whereIn('v.venta_tipo',['01','03'])
-            ->groupBy('vd.id_pro','p.pro_nombre','p.pro_codigo')
+            ->where([['v.anulado_sunat',0],['v.venta_cancelar',1]])->whereIn('v.venta_tipo',['01','03']);
+        if ($id_pro) $qv->where('vd.id_pro',$id_pro);
+        $vendidos = $qv->groupBy('vd.id_pro','p.pro_nombre','p.pro_codigo')
             ->selectRaw('vd.id_pro,p.pro_nombre,p.pro_codigo,SUM(vd.venta_detalle_cantidad) as total_cantidad,SUM(vd.venta_detalle_importe_total) as total_importe')
             ->orderByDesc('total_cantidad')->get();
-        $entradas = DB::table('orden_compra_detalle as od')->join('orden_compra as oc','oc.id_orden_compra','=','od.id_orden_compra')
+
+        $qe = DB::table('orden_compra_detalle as od')->join('orden_compra as oc','oc.id_orden_compra','=','od.id_orden_compra')
             ->join('productos as p','p.id_pro','=','od.id_pro')->join('proveedores as pv','pv.id_proveedores','=','oc.id_proveedores')
-            ->whereDate('oc.orden_compra_fecha','>=',$fi)->whereDate('oc.orden_compra_fecha','<=',$ff)->where('oc.orden_compra_estado',1)
-            ->select('oc.orden_compra_fecha','p.pro_nombre','p.pro_codigo','od.detalle_compra_cantidad','od.detalle_compra_precio_compra','od.detalle_compra_total_pedido','pv.proveedores_nombre')
+            ->whereDate('oc.orden_compra_fecha','>=',$fi)->whereDate('oc.orden_compra_fecha','<=',$ff)->where('oc.orden_compra_estado',1);
+        if ($id_pro) $qe->where('od.id_pro',$id_pro);
+        $entradas = $qe->select('oc.orden_compra_fecha','p.pro_nombre','p.pro_codigo','od.detalle_compra_cantidad','od.detalle_compra_precio_compra','od.detalle_compra_total_pedido','pv.proveedores_nombre')
             ->orderByDesc('oc.orden_compra_fecha')->get();
-        $salidas = DB::table('ventas_detalle as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')
+
+        $qs = DB::table('ventas_detalle as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')
             ->join('productos as p','p.id_pro','=','vd.id_pro')->join('clientes as c','c.id_clientes','=','v.id_clientes')
             ->whereDate('v.venta_fecha','>=',$fi)->whereDate('v.venta_fecha','<=',$ff)
-            ->where([['v.anulado_sunat',0],['v.venta_cancelar',1]])->whereIn('v.venta_tipo',['01','03'])
-            ->selectRaw("v.venta_fecha,p.pro_nombre,p.pro_codigo,vd.venta_detalle_cantidad,vd.venta_detalle_precio_unitario,vd.venta_detalle_importe_total,CASE WHEN c.id_tipo_documento=4 THEN c.cliente_razonsocial ELSE c.cliente_nombre END as cliente_nombre,c.cliente_numero,v.venta_serie,v.venta_correlativo,v.venta_tipo")
+            ->where([['v.anulado_sunat',0],['v.venta_cancelar',1]])->whereIn('v.venta_tipo',['01','03']);
+        if ($id_pro) $qs->where('vd.id_pro',$id_pro);
+        $salidas = $qs->selectRaw("v.venta_fecha,p.pro_nombre,p.pro_codigo,vd.venta_detalle_cantidad,vd.venta_detalle_precio_unitario,vd.venta_detalle_importe_total,CASE WHEN c.id_tipo_documento=4 THEN c.cliente_razonsocial ELSE c.cliente_nombre END as cliente_nombre,c.cliente_numero,v.venta_serie,v.venta_correlativo,v.venta_tipo")
             ->orderByDesc('v.venta_fecha')->get();
         return compact('stock','vendidos','entradas','salidas');
     }
@@ -939,8 +1010,12 @@ class ReporteController extends Controller
 
     public function reporte_productos_excel(Request $request)
     {
-        $fi=$request->get('desde',date('Y-m-d')); $ff=$request->get('hasta',date('Y-m-d'));
-        $productos=DB::table('productos')->where([['impuesto_bolsa',0],['pro_estado',1]])->get()->all();
+        $fi = $request->get('desde', date('Y-m-d'));
+        $ff = $request->get('hasta', date('Y-m-d'));
+        $id_pro = $request->get('id_pro') ?: null;
+        $query = DB::table('productos')->where([['impuesto_bolsa', 0], ['pro_estado', 1]]);
+        if ($id_pro) $query->where('id_pro', $id_pro);
+        $productos = $query->get()->all();
         foreach ($productos as $p) { $p->mas_vendidos=DB::table('ventas as v')->join('ventas_detalle as vd','vd.id_venta','=','v.id_venta')->whereDate('v.venta_fecha','>=',$fi)->whereDate('v.venta_fecha','<=',$ff)->where([['vd.id_pro',$p->id_pro],['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->count(); }
         usort($productos, fn($a,$b)=>$b->mas_vendidos<=>$a->mas_vendidos);
         $spreadsheet=new Spreadsheet(); $hc='0b1892'; $msg='Del '.date('d/m/Y',strtotime($fi)).' al '.date('d/m/Y',strtotime($ff));
@@ -960,8 +1035,12 @@ class ReporteController extends Controller
 
     public function reporte_productos_pdf(Request $request)
     {
-        $fi=$request->get('desde',date('Y-m-d')); $ff=$request->get('hasta',date('Y-m-d'));
-        $productos=DB::table('productos')->where([['impuesto_bolsa',0],['pro_estado',1]])->get()->all();
+        $fi = $request->get('desde', date('Y-m-d'));
+        $ff = $request->get('hasta', date('Y-m-d'));
+        $id_pro = $request->get('id_pro') ?: null;
+        $query = DB::table('productos')->where([['impuesto_bolsa', 0], ['pro_estado', 1]]);
+        if ($id_pro) $query->where('id_pro', $id_pro);
+        $productos = $query->get()->all();
         foreach ($productos as $p) { $p->mas_vendidos=DB::table('ventas as v')->join('ventas_detalle as vd','vd.id_venta','=','v.id_venta')->whereDate('v.venta_fecha','>=',$fi)->whereDate('v.venta_fecha','<=',$ff)->where([['vd.id_pro',$p->id_pro],['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->count(); }
         usort($productos, fn($a,$b)=>$b->mas_vendidos<=>$a->mas_vendidos);
         return view('reporte/pdf_productos', compact('productos','fi','ff'));
@@ -969,27 +1048,139 @@ class ReporteController extends Controller
 
     public function pdf_report_caja(Request $request)
     {
-        $fi=$request->get('desde',date('Y-m-d')); $ff=$request->get('hasta',date('Y-m-d'));
-        $cajas=DB::table('caja')->join('caja_numero','caja_numero.id_caja_numero','=','caja.id_caja_numero')->join('users','caja.id_users_apertura','=','users.id_users')->join('persona','persona.id_persona','=','users.id_persona')->where('caja.caja_fecha','>=',$fi)->where('caja.caja_fecha','<=',$ff)->get();
-        foreach ($cajas as $c) { $fib=$c->caja_fecha_apertura; $ffb=($c->caja_estado==0)?$c->caja_fecha_cierre:date('Y-m-d H:i:s'); $vs=DB::table('ventas as v')->where('v.id_caja_numero',$c->id_caja_numero)->where('v.venta_fecha','>=',$fib)->where('v.venta_fecha','<=',$ffb)->where([['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->whereIn('v.venta_tipo',['01','03'])->get(); $sum=0; foreach($vs as $v) $sum+=$v->venta_total; $pagos=DB::table('tipo_pago')->where('tipo_pago_estado',1)->get(); $te=0; foreach($pagos as $p){$dt=0; $pv=DB::table('ventas_detalle_pagos as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')->where('v.venta_fecha','>=',$fib)->where('v.venta_fecha','<=',$ffb)->where([['v.id_caja_numero',$c->id_caja_numero],['vd.id_tipo_pago',$p->id_tipo_pago],['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->whereIn('v.venta_tipo',['01','03'])->get(); foreach($pv as $v){$dt+=$v->venta_detalle_pago_monto; if($v->id_tipo_pago==1)$te+=$v->venta_detalle_pago_monto;} $p->sum_pago=$dt?:0;} $c->sumventas=$sum; $c->pagos=$pagos; $c->montoEfectivo=$te; }
-        return view('reporte/pdf_caja', compact('cajas','fi','ff'));
+        $fi             = $request->get('desde', date('Y-m-d'));
+        $ff             = $request->get('hasta', date('Y-m-d'));
+        $id_caja_numero = $request->get('id_caja_numero') ? (int)$request->get('id_caja_numero') : null;
+        $reporte        = $this->_calcular_reporte_caja($fi, $ff, $id_caja_numero);
+        return view('reporte/pdf_caja', compact('reporte', 'fi', 'ff'));
     }
 
     public function ventas_caja_excel(Request $request)
     {
-        $fi=$request->get('desde',date('Y-m-d')); $ff=$request->get('hasta',date('Y-m-d'));
-        $cajas=DB::table('caja')->join('caja_numero','caja_numero.id_caja_numero','=','caja.id_caja_numero')->join('users','caja.id_users_apertura','=','users.id_users')->join('persona','persona.id_persona','=','users.id_persona')->where('caja.caja_fecha','>=',$fi)->where('caja.caja_fecha','<=',$ff)->get();
-        foreach ($cajas as $c) { $fib=$c->caja_fecha_apertura; $ffb=($c->caja_estado==0)?$c->caja_fecha_cierre:date('Y-m-d H:i:s'); $vs=DB::table('ventas as v')->where('v.id_caja_numero',$c->id_caja_numero)->where('v.venta_fecha','>=',$fib)->where('v.venta_fecha','<=',$ffb)->where([['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->whereIn('v.venta_tipo',['01','03'])->get(); $sum=0; foreach($vs as $v) $sum+=$v->venta_total; $pagos=DB::table('tipo_pago')->where('tipo_pago_estado',1)->get(); $te=0; foreach($pagos as $p){$dt=0; $pv=DB::table('ventas_detalle_pagos as vd')->join('ventas as v','v.id_venta','=','vd.id_venta')->where('v.venta_fecha','>=',$fib)->where('v.venta_fecha','<=',$ffb)->where([['v.id_caja_numero',$c->id_caja_numero],['vd.id_tipo_pago',$p->id_tipo_pago],['v.anulado_sunat',0],['v.venta_cancelar',1],['v.id_formas_pago',1]])->whereIn('v.venta_tipo',['01','03'])->get(); foreach($pv as $v){$dt+=$v->venta_detalle_pago_monto; if($v->id_tipo_pago==1)$te+=$v->venta_detalle_pago_monto;} $p->sum_pago=$dt?:0;} $c->sumventas=$sum; $c->pagos=$pagos; $c->montoEfectivo=$te; }
-        $spreadsheet=new Spreadsheet(); $hc='0b1892'; $msg='Del '.date('d/m/Y',strtotime($fi)).' al '.date('d/m/Y',strtotime($ff));
-        $sh=$spreadsheet->getActiveSheet()->setTitle('Caja');
-        $sh->setCellValue('A1','REPORTE DE CAJA'); $sh->mergeCells('A1:E1');
-        $sh->setCellValue('A2',$msg); $sh->mergeCells('A2:E2');
-        $sh->getStyle('A1:A2')->getFont()->setBold(true)->setSize(13);
-        $row=3; $n=1;
-        foreach ($cajas as $c) { $sh->setCellValue('A'.$row,$n++); $sh->setCellValue('B'.$row,$c->persona_nombre??''); $sh->setCellValue('C'.$row,'Apertura: '.date('d/m/Y H:i',strtotime($c->caja_fecha_apertura))); $sh->setCellValue('D'.$row,'Total: S/ '.number_format($c->sumventas,2)); $sh->setCellValue('E'.$row,'Efectivo: S/ '.number_format($c->montoEfectivo,2)); $sh->getStyle('A'.$row.':E'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB($hc); $sh->getStyle('A'.$row.':E'.$row)->getFont()->getColor()->setARGB('FFFFFFFF'); $sh->getStyle('A'.$row.':E'.$row)->getFont()->setBold(true); $row++; foreach($c->pagos as $p){ if($p->sum_pago>0){ $sh->setCellValue('B'.$row,$p->tipo_pago_nombre??'Pago'); $sh->setCellValue('C'.$row,'S/ '.number_format($p->sum_pago,2)); $row++; } } $row++; }
-        foreach (['A'=>6,'B'=>25,'C'=>30,'D'=>20,'E'=>20] as $c=>$w) $sh->getColumnDimension($c)->setWidth($w);
-        $nombre='Reporte_Caja_'.date('d-m-Y').'.xlsx';
-        return response()->stream(function() use($spreadsheet){ IOFactory::createWriter($spreadsheet,'Xlsx')->save('php://output'); },200,['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition'=>'attachment; filename='.$nombre]);
+        $fi             = $request->get('desde', date('Y-m-d'));
+        $ff             = $request->get('hasta', date('Y-m-d'));
+        $id_caja_numero = $request->get('id_caja_numero') ? (int)$request->get('id_caja_numero') : null;
+        $reporte        = $this->_calcular_reporte_caja($fi, $ff, $id_caja_numero);
+        $hc = '0b1892'; $msg = 'Del ' . date('d/m/Y', strtotime($fi)) . ' al ' . date('d/m/Y', strtotime($ff));
+
+        $spreadsheet = new Spreadsheet();
+
+        // ── Hoja 1: Resumen ──────────────────────────────────────────────
+        $s1 = $spreadsheet->getActiveSheet()->setTitle('Resumen');
+        $s1->setCellValue('A1', 'REPORTE DE CAJA'); $s1->mergeCells('A1:D1');
+        $s1->setCellValue('A2', $msg);               $s1->mergeCells('A2:D2');
+        $s1->getStyle('A1:A2')->getFont()->setBold(true)->setSize(14);
+        $s1->getStyle('A1:D2')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB($hc);
+        $s1->getStyle('A1:D2')->getFont()->getColor()->setARGB('FFFFFFFF');
+
+        if (!$reporte) {
+            $s1->setCellValue('A3', 'Sin registros en el período.');
+        } else {
+            $r = $reporte['resumen'];
+            $row = 3;
+            $s1->setCellValue('A'.$row, 'CUADRE DE CAJA'); $s1->mergeCells('A'.$row.':D'.$row);
+            $s1->getStyle('A'.$row.':D'.$row)->getFont()->setBold(true);
+            $s1->getStyle('A'.$row.':D'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('3a5aba');
+            $s1->getStyle('A'.$row.':D'.$row)->getFont()->getColor()->setARGB('FFFFFFFF');
+            $row++;
+            $filas_cuadre = [
+                ['Caja', $reporte['nombreCaja']],
+                ['Período', $msg],
+                ['Turnos registrados', $r->total_turnos],
+                ['Turnos abiertos', $r->turnos_abiertos],
+                ['Monto apertura (soles)', 'S/ ' . number_format($r->monto_apertura, 2)],
+                ['Total ventas (contado)', 'S/ ' . number_format($r->total_ventas, 2)],
+                ['  de las cuales — Efectivo', 'S/ ' . number_format($r->ventas_efectivo, 2)],
+                ['Notas de crédito', 'S/ -' . number_format($r->notas_credito, 2)],
+                ['Total en sistema', 'S/ ' . number_format($r->total_sistema, 2)],
+                ['Monto cierre (contado)', 'S/ ' . number_format($r->monto_cierre, 2)],
+                ['Diferencia', 'S/ ' . number_format($r->diferencia, 2)],
+            ];
+            foreach ($filas_cuadre as [$label, $val]) {
+                $s1->setCellValue('A'.$row, $label); $s1->setCellValue('B'.$row, $val); $row++;
+            }
+            $row++;
+
+            // Ventas por medio de pago
+            $s1->setCellValue('A'.$row, 'VENTAS POR MEDIO DE PAGO'); $s1->mergeCells('A'.$row.':D'.$row);
+            $s1->getStyle('A'.$row.':D'.$row)->getFont()->setBold(true);
+            $s1->getStyle('A'.$row.':D'.$row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('3a5aba');
+            $s1->getStyle('A'.$row.':D'.$row)->getFont()->getColor()->setARGB('FFFFFFFF');
+            $row++;
+            $s1->setCellValue('A'.$row, 'Medio'); $s1->setCellValue('B'.$row, 'Total S/');
+            $s1->getStyle('A'.$row.':B'.$row)->getFont()->setBold(true);
+            $row++;
+            foreach ($reporte['ventasPorMedio'] as $vm) {
+                $s1->setCellValue('A'.$row, $vm->tipo_pago_nombre); $s1->setCellValue('B'.$row, number_format((float)$vm->total, 2)); $row++;
+            }
+            foreach (['A'=>30,'B'=>20,'C'=>20,'D'=>20] as $c=>$w) $s1->getColumnDimension($c)->setWidth($w);
+        }
+
+        // ── Hoja 2: Turnos ───────────────────────────────────────────────
+        $s2 = $spreadsheet->createSheet()->setTitle('Turnos');
+        $s2->setCellValue('A1', 'TURNOS DE CAJA'); $s2->mergeCells('A1:G1');
+        $s2->setCellValue('A2', $msg);             $s2->mergeCells('A2:G2');
+        $s2->getStyle('A1:G2')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB($hc);
+        $s2->getStyle('A1:G2')->getFont()->getColor()->setARGB('FFFFFFFF');
+        $s2->getStyle('A1:A2')->getFont()->setBold(true)->setSize(13);
+        foreach (['#','Caja','Cajero','Apertura','Cierre','M.Apertura','Estado'] as $i=>$h) $s2->setCellValue(chr(65+$i).'3',$h);
+        $s2->getStyle('A3:G3')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('3a5aba');
+        $s2->getStyle('A3:G3')->getFont()->getColor()->setARGB('FFFFFFFF');
+        $s2->getStyle('A3:G3')->getFont()->setBold(true);
+        $row=4; $n=1;
+        if ($reporte) {
+            foreach ($reporte['turnos'] as $t) {
+                $s2->setCellValue('A'.$row,$n++);
+                $s2->setCellValue('B'.$row,$t->caja_numero_nombre);
+                $s2->setCellValue('C'.$row,$t->nombre_apertura);
+                $s2->setCellValue('D'.$row,date('d/m/Y H:i',strtotime($t->caja_fecha_apertura)));
+                $s2->setCellValue('E'.$row,$t->caja_estado==0?date('d/m/Y H:i',strtotime($t->caja_fecha_cierre)):'Abierto');
+                $s2->setCellValue('F'.$row,'S/ '.number_format((float)$t->caja_apertura,2));
+                $s2->setCellValue('G'.$row,$t->caja_estado==0?'CERRADO':'ABIERTO');
+                $row++;
+            }
+        }
+        foreach (['A'=>6,'B'=>18,'C'=>28,'D'=>20,'E'=>20,'F'=>16,'G'=>12] as $c=>$w) $s2->getColumnDimension($c)->setWidth($w);
+
+        // ── Hoja 3: Comprobantes ─────────────────────────────────────────
+        $s3 = $spreadsheet->createSheet()->setTitle('Comprobantes');
+        $s3->setCellValue('A1','COMPROBANTES EMITIDOS'); $s3->mergeCells('A1:G1');
+        $s3->setCellValue('A2',$msg);                   $s3->mergeCells('A2:G2');
+        $s3->getStyle('A1:G2')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB($hc);
+        $s3->getStyle('A1:G2')->getFont()->getColor()->setARGB('FFFFFFFF');
+        $s3->getStyle('A1:A2')->getFont()->setBold(true)->setSize(13);
+        foreach (['#','Tipo','Comprobante','Caja','Cliente','Fecha','Total S/'] as $i=>$h) $s3->setCellValue(chr(65+$i).'3',$h);
+        $s3->getStyle('A3:G3')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('3a5aba');
+        $s3->getStyle('A3:G3')->getFont()->getColor()->setARGB('FFFFFFFF');
+        $s3->getStyle('A3:G3')->getFont()->setBold(true);
+        $row=4; $n=1; $totalComprobantes=0;
+        if ($reporte) {
+            foreach ($reporte['comprobantes'] as $v) {
+                $tipo = $v->venta_tipo=='01'?'Factura':'Boleta';
+                $comp = $v->venta_serie.'-'.str_pad($v->venta_correlativo,8,'0',STR_PAD_LEFT);
+                $s3->setCellValue('A'.$row,$n++);
+                $s3->setCellValue('B'.$row,$tipo);
+                $s3->setCellValue('C'.$row,$comp);
+                $s3->setCellValue('D'.$row,$v->caja_numero_nombre);
+                $s3->setCellValue('E'.$row,$v->cliente_nombre);
+                $s3->setCellValue('F'.$row,date('d/m/Y H:i',strtotime($v->venta_fecha)));
+                $s3->setCellValue('G'.$row,number_format((float)$v->venta_total,2));
+                $totalComprobantes += (float)$v->venta_total;
+                $row++;
+            }
+            $s3->setCellValue('F'.$row,'TOTAL:'); $s3->setCellValue('G'.$row,number_format($totalComprobantes,2));
+            $s3->getStyle('F'.$row.':G'.$row)->getFont()->setBold(true);
+        }
+        foreach (['A'=>6,'B'=>12,'C'=>22,'D'=>18,'E'=>35,'F'=>18,'G'=>14] as $c=>$w) $s3->getColumnDimension($c)->setWidth($w);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $nombre = 'Reporte_Caja_' . date('d-m-Y') . '.xlsx';
+        return response()->stream(
+            function () use ($spreadsheet) { IOFactory::createWriter($spreadsheet, 'Xlsx')->save('php://output'); },
+            200,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+             'Content-Disposition' => 'attachment; filename=' . $nombre]
+        );
     }
 
     public function proveedores_excel(Request $request)

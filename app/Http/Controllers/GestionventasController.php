@@ -270,6 +270,15 @@ class GestionventasController extends Controller
                                     'movimientos_productos_detalle_estado' => 1,
                                 ]);
                                 if ($detalle) {
+                                    DB::table('productos_log')->insert([
+                                        'id_pro'                      => $d->id_producto,
+                                        'id_tipo_movimiento_producto' => 4,
+                                        'productos_log_fecha'         => date('Y-m-d'),
+                                        'productos_log_cantidad'      => $d->cantidad,
+                                        'productos_log_costo_unitario'=> floatval($validar_stock_2->pro_costo_promedio ?? 0),
+                                        'productos_log_documento'     => 'MP-' . $ul_creacion->id_movimientos_productos,
+                                        'productos_log_referencia_id' => $ul_creacion->id_movimientos_productos,
+                                    ]);
                                     $reducir = DB::table('productos')->where('id_pro', '=', $d->id_producto)->update(['pro_stock' => $validar_stock->pro_stock - $d->cantidad]);
                                 }
                             }
@@ -303,6 +312,15 @@ class GestionventasController extends Controller
                             $newDetalle->movimientos_productos_detalle_cantidad = $d->cantidad;
                             $newDetalle->movimientos_productos_detalle_estado = 1;
                             if ($newDetalle->save()){
+                                DB::table('productos_log')->insert([
+                                    'id_pro'                      => $d->id_producto,
+                                    'id_tipo_movimiento_producto' => 3,
+                                    'productos_log_fecha'         => date('Y-m-d'),
+                                    'productos_log_cantidad'      => $d->cantidad,
+                                    'productos_log_costo_unitario'=> floatval($informacionProducto->pro_costo_promedio ?? 0),
+                                    'productos_log_documento'     => 'MP-' . $idUltimoRegistro,
+                                    'productos_log_referencia_id' => $idUltimoRegistro,
+                                ]);
                                 $updateProduct = Productos::find($d->id_producto);
                                 $updateProduct->pro_stock = ($informacionProducto->pro_stock + $d->cantidad);
                                 if ($updateProduct->save()){
@@ -764,6 +782,18 @@ class GestionventasController extends Controller
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);
                                             if ($guardar_venta_detalle){
+                                                $doc_log = ($ultima_venta->venta_serie ?? '') . '-' . ($ultima_venta->venta_correlativo ?? '');
+                                                foreach ($detalles as $det) {
+                                                    DB::table('productos_log')->insert([
+                                                        'id_pro'                      => $det['id_pro'],
+                                                        'id_tipo_movimiento_producto' => 2,
+                                                        'productos_log_fecha'         => date('Y-m-d'),
+                                                        'productos_log_cantidad'      => $det['venta_detalle_cantidad'],
+                                                        'productos_log_costo_unitario'=> floatval($det['venta_detalle_precio_unitario'] ?? 0),
+                                                        'productos_log_documento'     => $doc_log,
+                                                        'productos_log_referencia_id' => $ultima_venta->id_venta,
+                                                    ]);
+                                                }
                                                 $ara_cuoas = [];
                                                 foreach ($cuotas as $c){
                                                     $fechaDateTime = \DateTime::createFromFormat('j/n/Y', $c['fecha_pago']);
@@ -938,6 +968,18 @@ class GestionventasController extends Controller
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);
                                             if ($guardar_venta_detalle){
+                                                $doc_log = ($ultima_venta->venta_serie ?? '') . '-' . ($ultima_venta->venta_correlativo ?? '');
+                                                foreach ($detalles as $det) {
+                                                    DB::table('productos_log')->insert([
+                                                        'id_pro'                      => $det['id_pro'],
+                                                        'id_tipo_movimiento_producto' => 2,
+                                                        'productos_log_fecha'         => date('Y-m-d'),
+                                                        'productos_log_cantidad'      => $det['venta_detalle_cantidad'],
+                                                        'productos_log_costo_unitario'=> floatval($det['venta_detalle_precio_unitario'] ?? 0),
+                                                        'productos_log_documento'     => $doc_log,
+                                                        'productos_log_referencia_id' => $ultima_venta->id_venta,
+                                                    ]);
+                                                }
                                                 // guardado en venta detalle pago
                                                 if ($partiPago == 1){
                                                     $pagos = [

@@ -1,5 +1,70 @@
 @extends('layouts.plantilla')
 @section('content')
+<style>
+.mv-search-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+}
+.mv-search-wrap { position: relative; }
+.mv-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 13px;
+  pointer-events: none;
+}
+.mv-search-input {
+  width: 100%;
+  padding: 9px 13px 9px 34px;
+  font-size: 13.5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #1e293b;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+.mv-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+  background: #fff;
+}
+.mv-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(15,23,42,.13);
+  max-height: 280px;
+  overflow-y: auto;
+  display: none;
+}
+.mv-dropdown.open { display: block; }
+.mv-drop-item {
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .12s;
+}
+.mv-drop-item:last-child { border-bottom: none; }
+.mv-drop-item:hover { background: #eff6ff; }
+.mv-drop-name  { font-size: 13px; font-weight: 600; color: #1e293b; }
+.mv-drop-meta  { font-size: 11px; color: #64748b; margin-top: 2px; }
+.mv-drop-code  { font-family: monospace; color: #6b7280; }
+.mv-drop-fam   { color: #2563eb; margin-left: 6px; }
+.mv-drop-empty { padding: 12px 14px; font-size: 13px; color: #64748b; font-style: italic; }
+</style>
     <div class="modal fade" id="modal_realizar_movimiento_producto" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -24,12 +89,12 @@
                             </div>
 
                             <div class="col-lg-12 col-md-12 col-sm-12 mt-3 mb-3">
-                                <label for="buscar_productos_movientos" class="fw-semibold"><i class="bx bx-search"></i> Buscar Productos</label>
-                                <input type="text" name="buscar_productos_movientos" id="buscar_productos_movientos" placeholder="Ingrese Información..." class="form-control  p-1">
-                                <div class="shadow" style="z-index: 999;position: absolute; width: 90%">
-                                    <div class="list-group list-group-flush bg-white  " style="overflow: auto;" id="lista_productos_movimientos">
-
-                                    </div>
+                                <label class="mv-search-label"><i class="fa-solid fa-magnifying-glass"></i> Buscar Productos</label>
+                                <div class="mv-search-wrap">
+                                    <i class="fa-solid fa-magnifying-glass mv-search-icon"></i>
+                                    <input type="text" name="buscar_productos_movientos" id="buscar_productos_movientos"
+                                           class="mv-search-input" placeholder="Buscar por nombre o código…" autocomplete="off">
+                                    <div id="mv_productos_dropdown" class="mv-dropdown"></div>
                                 </div>
                             </div>
 {{--                            <div class="col-lg-12 d-flex justify-content-center mt-3">--}}

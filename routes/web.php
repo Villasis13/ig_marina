@@ -158,6 +158,9 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::post('/enviar_guia_sunat',[LogisticaController::class ,'enviar_guia_sunat'])->name('logistica.enviar_guia_sunat');
     route::post('/eliminar_guia',[LogisticaController::class ,'eliminar_guia'])->name('logistica.eliminar_guia');
     route::get('/imprimir_guia_pdf',[LogisticaController::class ,'imprimir_guia_pdf'])->name('logistica.imprimir_guia_pdf');
+    route::get('/kardex',[LogisticaController::class ,'kardex'])->name('logistica.kardex');
+    route::get('/kardex_pdf',[LogisticaController::class ,'kardex_pdf'])->name('logistica.kardex_pdf');
+    route::get('/kardex_excel',[LogisticaController::class ,'kardex_excel'])->name('logistica.kardex_excel');
 });
 Route::prefix('Gestionventas')->middleware('auth')->group(function () {
     // Rutas del grupo

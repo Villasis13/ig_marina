@@ -713,6 +713,15 @@ class LogisticaController extends Controller
                                 DB::table('productos')->where('id_pro', $d->id_pro)
                                     ->update(['pro_stock' => $nuevoStock]);
                             }
+                            DB::table('productos_log')->insert([
+                                'id_pro'                      => $d->id_pro,
+                                'id_tipo_movimiento_producto' => 1,
+                                'productos_log_fecha'         => $id_orden_compra->orden_compra_fecha ?? date('Y-m-d'),
+                                'productos_log_cantidad'      => floatval($d->cantidad),
+                                'productos_log_costo_unitario'=> $costo_unitario_entrada,
+                                'productos_log_documento'     => ($id_orden_compra->orden_compra_tipo_doc ?? 'OC') . '-' . ($id_orden_compra->orden_compra_numero_doc ?? ''),
+                                'productos_log_referencia_id' => $id_orden_compra->id_orden_compra,
+                            ]);
                         }
                         $result = $detalle ? 1 : 2;
                         if($result == 1){
@@ -1016,6 +1025,659 @@ class LogisticaController extends Controller
         }
     }
 
+    public function kardex(Request $request)
+    {
+        try {
+            $opciones = $this->submenu->optiones_por_vista('kardex');
+            return view('logistica/kardex', compact('opciones'));
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            echo "<script>alert('Error al cargar Kardex.'); window.location.href='" . route('admin') . "';</script>";
+        }
+    }
+
+    public function kardex_pdf(Request $request)
+    {
+        try {
+            $id_pro      = (int)$request->input('id_pro');
+            $tipo        = strtoupper($request->input('tipo', 'F'));
+            $fecha_desde = $request->input('fecha_desde');
+            $fecha_hasta = $request->input('fecha_hasta');
+
+            if (!$id_pro || !$fecha_desde || !$fecha_hasta) {
+                return response('Parámetros incompletos.', 400);
+            }
+
+            $producto = DB::table('productos')->where('id_pro', $id_pro)->first();
+            if (!$producto) {
+                return response('Producto no encontrado.', 404);
+            }
+
+            $empresa = DB::table('empresa')->first();
+
+            $movimientos = DB::table('productos_log as pl')
+                ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                ->where('pl.id_pro', $id_pro)
+                ->whereBetween('pl.productos_log_fecha', [$fecha_desde, $fecha_hasta])
+                ->select('pl.*', 'tm.tipo_movimiento_descripcion', 'tm.tipo_movimiento_tipo')
+                ->orderBy('pl.productos_log_fecha')
+                ->orderBy('pl.id_productos_log')
+                ->get();
+
+            $titulo = $tipo === 'F' ? 'KARDEX ' . utf8_decode('FÍSICO') : 'KARDEX VALORIZADO';
+
+            if ($tipo === 'F') {
+                // ── KARDEX FÍSICO ─────────────────────────────────────────────
+                $saldo_anterior = DB::table('productos_log as pl')
+                    ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                    ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_fecha', '<', $fecha_desde)
+                    ->selectRaw("COALESCE(
+                        SUM(CASE WHEN tm.tipo_movimiento_tipo='E' THEN pl.productos_log_cantidad ELSE 0 END) -
+                        SUM(CASE WHEN tm.tipo_movimiento_tipo='S' THEN pl.productos_log_cantidad ELSE 0 END)
+                    , 0) AS saldo")
+                    ->value('saldo');
+                $saldo_anterior = floatval($saldo_anterior);
+
+                $pdf = new CustomFpdf('P', 'mm', 'A4');
+                $pdf->SetMargins(10, 10, 10);
+                $pdf->SetAutoPageBreak(true, 15);
+                $pdf->AddPage();
+
+                $this->_kx_cabecera($pdf, $empresa, $titulo, $producto, $fecha_desde, $fecha_hasta);
+
+                // Cabecera de columnas (190mm usable)
+                // FECHA(22)|TIPO MOV.(47)|DOCUMENTO(33)|ENTRADA(29)|SALIDA(29)|SALDO(30) = 190
+                $pdf->SetFillColor(30, 60, 130);
+                $pdf->SetTextColor(255, 255, 255);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetX(10);
+                $pdf->Cell(22, 6, 'FECHA',           1, 0, 'C', true);
+                $pdf->Cell(47, 6, 'TIPO MOVIMIENTO', 1, 0, 'C', true);
+                $pdf->Cell(33, 6, 'DOCUMENTO',       1, 0, 'C', true);
+                $pdf->Cell(29, 6, 'ENTRADA',         1, 0, 'C', true);
+                $pdf->Cell(29, 6, 'SALIDA',          1, 0, 'C', true);
+                $pdf->Cell(30, 6, 'SALDO',           1, 1, 'C', true);
+                $pdf->SetFillColor(255, 255, 255);
+                $pdf->SetTextColor(0, 0, 0);
+
+                // Fila saldo anterior
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetX(10);
+                $pdf->Cell(22, 5, '',                                            1, 0, 'C');
+                $pdf->Cell(47, 5, utf8_decode('SALDO ANTERIOR'),                 1, 0, 'L');
+                $pdf->Cell(33, 5, '',                                            1, 0, 'C');
+                $pdf->Cell(29, 5, '',                                            1, 0, 'R');
+                $pdf->Cell(29, 5, '',                                            1, 0, 'R');
+                $pdf->Cell(30, 5, number_format($saldo_anterior, 2, '.', ','),  1, 1, 'R');
+
+                // Filas de movimientos
+                $saldo       = $saldo_anterior;
+                $tot_entrada = 0.0;
+                $tot_salida  = 0.0;
+                $fill        = false;
+
+                foreach ($movimientos as $mov) {
+                    $cant = floatval($mov->productos_log_cantidad);
+                    if ($mov->tipo_movimiento_tipo === 'E') {
+                        $saldo       += $cant;
+                        $tot_entrada += $cant;
+                        $col_e = number_format($cant, 2, '.', ',');
+                        $col_s = '';
+                    } else {
+                        $saldo      -= $cant;
+                        $tot_salida += $cant;
+                        $col_e = '';
+                        $col_s = number_format($cant, 2, '.', ',');
+                    }
+                    $pdf->CheckPageBreak(5);
+                    $pdf->SetFillColor($fill ? 240 : 255, $fill ? 244 : 255, $fill ? 255 : 255);
+                    $pdf->SetFont('Helvetica', '', 7.5);
+                    $pdf->SetX(10);
+                    $pdf->Cell(22, 5, date('d/m/Y', strtotime($mov->productos_log_fecha)),  1, 0, 'C', $fill);
+                    $pdf->Cell(47, 5, utf8_decode($mov->tipo_movimiento_descripcion),         1, 0, 'L', $fill);
+                    $pdf->Cell(33, 5, utf8_decode($mov->productos_log_documento ?? ''),        1, 0, 'C', $fill);
+                    $pdf->Cell(29, 5, $col_e,                                                 1, 0, 'R', $fill);
+                    $pdf->Cell(29, 5, $col_s,                                                 1, 0, 'R', $fill);
+                    $pdf->Cell(30, 5, number_format($saldo, 2, '.', ','),                     1, 1, 'R', $fill);
+                    $fill = !$fill;
+                }
+
+                // Fila totales
+                $pdf->SetFillColor(210, 218, 240);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetX(10);
+                $pdf->Cell(102, 5, utf8_decode('TOTALES'),                     1, 0, 'R', true);
+                $pdf->Cell(29,  5, number_format($tot_entrada, 2, '.', ','),   1, 0, 'R', true);
+                $pdf->Cell(29,  5, number_format($tot_salida,  2, '.', ','),   1, 0, 'R', true);
+                $pdf->Cell(30,  5, number_format($saldo,       2, '.', ','),   1, 1, 'R', true);
+
+            } else {
+                // ── KARDEX VALORIZADO ─────────────────────────────────────────
+                // Reconstruir promedio ponderado desde el inicio hasta fecha_desde
+                $historial = DB::table('productos_log as pl')
+                    ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                    ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_fecha', '<', $fecha_desde)
+                    ->select('pl.productos_log_cantidad', 'pl.productos_log_costo_unitario', 'tm.tipo_movimiento_tipo')
+                    ->orderBy('pl.productos_log_fecha')
+                    ->orderBy('pl.id_productos_log')
+                    ->get();
+
+                $saldo_cant = 0.0;
+                $saldo_prom = 0.0;
+                foreach ($historial as $h) {
+                    $hq = floatval($h->productos_log_cantidad);
+                    $hc = floatval($h->productos_log_costo_unitario);
+                    if ($h->tipo_movimiento_tipo === 'E') {
+                        if ($saldo_cant + $hq > 0) {
+                            $saldo_prom = ($saldo_cant * $saldo_prom + $hq * $hc) / ($saldo_cant + $hq);
+                        } else {
+                            $saldo_prom = $hc;
+                        }
+                        $saldo_cant += $hq;
+                    } else {
+                        $saldo_cant = max(0.0, $saldo_cant - $hq);
+                    }
+                }
+
+                // Landscape A4: 297mm ancho - 20mm márgenes = 277mm usable
+                // FECHA(20)|TIPO(38)|DOC(27)|E-CANT(19)|E-CU(22)|E-TOT(22)|S-CANT(19)|S-CU(22)|S-TOT(22)|SD-CANT(19)|SD-CU(22)|SD-TOT(25)
+                $wF=20; $wT=38; $wD=27;
+                $wEC=19; $wEU=22; $wET=22;
+                $wSC=19; $wSU=22; $wST=22;
+                $wDC=19; $wDU=22; $wDT=25;
+
+                $pdf = new CustomFpdf('L', 'mm', 'A4');
+                $pdf->SetMargins(10, 10, 10);
+                $pdf->SetAutoPageBreak(true, 15);
+                $pdf->AddPage();
+
+                $this->_kx_cabecera($pdf, $empresa, $titulo, $producto, $fecha_desde, $fecha_hasta);
+
+                // Fila 1: grupos (colores por sección)
+                $pdf->SetTextColor(255, 255, 255);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->SetX(10);
+                $pdf->SetFillColor(61, 68, 81);
+                $pdf->Cell($wF, 6, '', 1, 0, 'C', true);
+                $pdf->Cell($wT, 6, '', 1, 0, 'C', true);
+                $pdf->Cell($wD, 6, '', 1, 0, 'C', true);
+                $pdf->SetFillColor(21, 128, 61);
+                $pdf->Cell($wEC+$wEU+$wET, 6, 'ENTRADAS', 1, 0, 'C', true);
+                $pdf->SetFillColor(185, 28, 28);
+                $pdf->Cell($wSC+$wSU+$wST, 6, 'SALIDAS',  1, 0, 'C', true);
+                $pdf->SetFillColor(30, 60, 130);
+                $pdf->Cell($wDC+$wDU+$wDT, 6, 'SALDO',    1, 1, 'C', true);
+
+                // Fila 2: subcolumnas (mismo esquema de color)
+                $pdf->SetX(10);
+                $pdf->SetFillColor(61, 68, 81);
+                $pdf->Cell($wF,  5, 'FECHA',     1, 0, 'C', true);
+                $pdf->Cell($wT,  5, 'TIPO MOV.', 1, 0, 'C', true);
+                $pdf->Cell($wD,  5, 'DOCUMENTO', 1, 0, 'C', true);
+                $pdf->SetFillColor(21, 128, 61);
+                $pdf->Cell($wEC, 5, 'CANT.',     1, 0, 'C', true);
+                $pdf->Cell($wEU, 5, 'C. UNIT.',  1, 0, 'C', true);
+                $pdf->Cell($wET, 5, 'TOTAL',     1, 0, 'C', true);
+                $pdf->SetFillColor(185, 28, 28);
+                $pdf->Cell($wSC, 5, 'CANT.',     1, 0, 'C', true);
+                $pdf->Cell($wSU, 5, 'C. UNIT.',  1, 0, 'C', true);
+                $pdf->Cell($wST, 5, 'TOTAL',     1, 0, 'C', true);
+                $pdf->SetFillColor(30, 60, 130);
+                $pdf->Cell($wDC, 5, 'CANT.',     1, 0, 'C', true);
+                $pdf->Cell($wDU, 5, 'C. UNIT.',  1, 0, 'C', true);
+                $pdf->Cell($wDT, 5, 'TOTAL',     1, 1, 'C', true);
+                $pdf->SetFillColor(255, 255, 255);
+                $pdf->SetTextColor(0, 0, 0);
+
+                // Fila saldo anterior
+                $pdf->SetFont('Helvetica', 'B', 7.5);
+                $pdf->SetX(10);
+                $pdf->Cell($wF,  5, '',                                                       1, 0, 'C');
+                $pdf->Cell($wT,  5, utf8_decode('SALDO ANTERIOR'),                            1, 0, 'L');
+                $pdf->Cell($wD,  5, '',                                                       1, 0, 'C');
+                $pdf->Cell($wEC, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wEU, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wET, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wSC, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wSU, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wST, 5, '',                                                       1, 0, 'R');
+                $pdf->Cell($wDC, 5, number_format($saldo_cant, 2, '.', ','),                  1, 0, 'R');
+                $pdf->Cell($wDU, 5, number_format($saldo_prom, 4, '.', ','),                  1, 0, 'R');
+                $pdf->Cell($wDT, 5, number_format($saldo_cant * $saldo_prom, 2, '.', ','),    1, 1, 'R');
+
+                // Filas de movimientos
+                $fill   = false;
+                $tot_ec = 0.0; $tot_et = 0.0;
+                $tot_sc = 0.0; $tot_st = 0.0;
+                $fmt = function($v, $d = 2) {
+                    return $v === '' ? '' : number_format((float)$v, $d, '.', ',');
+                };
+
+                foreach ($movimientos as $mov) {
+                    $cant  = floatval($mov->productos_log_cantidad);
+                    $costo = floatval($mov->productos_log_costo_unitario);
+
+                    if ($mov->tipo_movimiento_tipo === 'E') {
+                        if ($saldo_cant + $cant > 0) {
+                            $saldo_prom = ($saldo_cant * $saldo_prom + $cant * $costo) / ($saldo_cant + $cant);
+                        } else {
+                            $saldo_prom = $costo;
+                        }
+                        $saldo_cant += $cant;
+                        $tot_entrada = $cant * $costo;
+                        $tot_ec     += $cant;
+                        $tot_et     += $tot_entrada;
+                        $row = ['ec' => $cant, 'eu' => $costo, 'et' => $tot_entrada, 'sc' => '', 'su' => '', 'st' => ''];
+                    } else {
+                        $costo_salida = floatval($mov->productos_log_costo_unitario);
+                        $tot_salida   = $cant * $costo_salida;
+                        $saldo_cant   = max(0.0, $saldo_cant - $cant);
+                        $tot_sc      += $cant;
+                        $tot_st      += $tot_salida;
+                        $row = ['ec' => '', 'eu' => '', 'et' => '', 'sc' => $cant, 'su' => $costo_salida, 'st' => $tot_salida];
+                    }
+
+                    $pdf->CheckPageBreak(5);
+                    $pdf->SetFillColor($fill ? 240 : 255, $fill ? 244 : 255, $fill ? 255 : 255);
+                    $pdf->SetFont('Helvetica', '', 7);
+                    $pdf->SetX(10);
+                    $pdf->Cell($wF,  5, date('d/m/Y', strtotime($mov->productos_log_fecha)),  1, 0, 'C', $fill);
+                    $pdf->Cell($wT,  5, utf8_decode($mov->tipo_movimiento_descripcion),         1, 0, 'L', $fill);
+                    $pdf->Cell($wD,  5, utf8_decode($mov->productos_log_documento ?? ''),        1, 0, 'C', $fill);
+                    $pdf->Cell($wEC, 5, $fmt($row['ec']),                                        1, 0, 'R', $fill);
+                    $pdf->Cell($wEU, 5, $fmt($row['eu'], 4),                                     1, 0, 'R', $fill);
+                    $pdf->Cell($wET, 5, $fmt($row['et']),                                        1, 0, 'R', $fill);
+                    $pdf->Cell($wSC, 5, $fmt($row['sc']),                                        1, 0, 'R', $fill);
+                    $pdf->Cell($wSU, 5, $fmt($row['su'], 4),                                     1, 0, 'R', $fill);
+                    $pdf->Cell($wST, 5, $fmt($row['st']),                                        1, 0, 'R', $fill);
+                    $pdf->Cell($wDC, 5, number_format($saldo_cant, 2, '.', ','),                 1, 0, 'R', $fill);
+                    $pdf->Cell($wDU, 5, number_format($saldo_prom, 4, '.', ','),                 1, 0, 'R', $fill);
+                    $pdf->Cell($wDT, 5, number_format($saldo_cant * $saldo_prom, 2, '.', ','),   1, 1, 'R', $fill);
+                    $fill = !$fill;
+                }
+
+                // Fila totales
+                $pdf->SetFillColor(210, 218, 240);
+                $pdf->SetFont('Helvetica', 'B', 7.5);
+                $pdf->SetX(10);
+                $pdf->Cell($wF+$wT+$wD, 5, utf8_decode('TOTALES'),                          1, 0, 'R', true);
+                $pdf->Cell($wEC, 5, number_format($tot_ec, 2, '.', ','),                     1, 0, 'R', true);
+                $pdf->Cell($wEU, 5, '',                                                       1, 0, 'R', true);
+                $pdf->Cell($wET, 5, number_format($tot_et, 2, '.', ','),                     1, 0, 'R', true);
+                $pdf->Cell($wSC, 5, number_format($tot_sc, 2, '.', ','),                     1, 0, 'R', true);
+                $pdf->Cell($wSU, 5, '',                                                       1, 0, 'R', true);
+                $pdf->Cell($wST, 5, number_format($tot_st, 2, '.', ','),                     1, 0, 'R', true);
+                $pdf->Cell($wDC, 5, number_format($saldo_cant, 2, '.', ','),                 1, 0, 'R', true);
+                $pdf->Cell($wDU, 5, number_format($saldo_prom, 4, '.', ','),                 1, 0, 'R', true);
+                $pdf->Cell($wDT, 5, number_format($saldo_cant * $saldo_prom, 2, '.', ','),   1, 1, 'R', true);
+            }
+
+            $pdf->Output('I', 'kardex_' . ($tipo === 'F' ? 'fisico' : 'valorizado') . '_' . date('Ymd') . '.pdf');
+            exit;
+
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response('Error al generar Kardex PDF: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function kardex_excel(Request $request)
+    {
+        try {
+            $id_pro      = (int)$request->input('id_pro');
+            $tipo        = strtoupper($request->input('tipo', 'F'));
+            $fecha_desde = $request->input('fecha_desde');
+            $fecha_hasta = $request->input('fecha_hasta');
+
+            if (!$id_pro || !$fecha_desde || !$fecha_hasta) {
+                return response('Parámetros incompletos.', 400);
+            }
+
+            $producto = DB::table('productos')->where('id_pro', $id_pro)->first();
+            if (!$producto) return response('Producto no encontrado.', 404);
+
+            $empresa = DB::table('empresa')->first();
+
+            $movimientos = DB::table('productos_log as pl')
+                ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                ->where('pl.id_pro', $id_pro)
+                ->whereBetween('pl.productos_log_fecha', [$fecha_desde, $fecha_hasta])
+                ->select('pl.*', 'tm.tipo_movimiento_descripcion', 'tm.tipo_movimiento_tipo')
+                ->orderBy('pl.productos_log_fecha')
+                ->orderBy('pl.id_productos_log')
+                ->get();
+
+            $spreadsheet = new Spreadsheet();
+            $sheet       = $spreadsheet->getActiveSheet();
+
+            // ── Helpers de estilo ────────────────────────────────────────
+            $sCenter = ['alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+            $sLeft   = ['alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT,   'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+            $sRight  = ['alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT,  'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+            $sBorder = ['borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]]];
+            $sFill   = fn($argb) => ['fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'color' => ['argb' => $argb]]];
+            $nFmt    = fn($sheet, $range, $fmt) => $sheet->getStyle($range)->getNumberFormat()->setFormatCode($fmt);
+
+            // ── Cabecera común (empresa + producto + periodo) ─────────────
+            $lastCol = $tipo === 'F' ? 'F' : 'L';
+            $writeHeader = function() use ($sheet, $empresa, $producto, $fecha_desde, $fecha_hasta, &$lastCol, $sCenter, $sLeft) {
+                $row = 1;
+                $sheet->setCellValue("A{$row}", $empresa->empresa_razon_social ?? '');
+                $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11);
+                $sheet->getStyle("A{$row}")->applyFromArray($sCenter);
+                $row++;
+
+                $sheet->setCellValue("A{$row}", 'RUC: ' . ($empresa->empresa_ruc ?? ''));
+                $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+                $sheet->getStyle("A{$row}")->getFont()->setSize(9);
+                $sheet->getStyle("A{$row}")->applyFromArray($sCenter);
+                $row++;
+
+                $titulo = $lastCol === 'F' ? 'KARDEX FÍSICO' : 'KARDEX VALORIZADO';
+                $sheet->setCellValue("A{$row}", $titulo);
+                $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+                $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(13);
+                $sheet->getStyle("A{$row}")->applyFromArray($sCenter);
+                $row++;
+
+                $sheet->setCellValue("A{$row}", 'Producto: ' . ($producto->pro_nombre ?? '') . '  |  Código: ' . ($producto->pro_codigo ?? ''));
+                $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+                $sheet->getStyle("A{$row}")->getFont()->setSize(9);
+                $sheet->getStyle("A{$row}")->applyFromArray($sLeft);
+                $row++;
+
+                $sheet->setCellValue("A{$row}", 'Período: ' . date('d/m/Y', strtotime($fecha_desde)) . ' — ' . date('d/m/Y', strtotime($fecha_hasta)));
+                $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+                $sheet->getStyle("A{$row}")->getFont()->setSize(9);
+                $sheet->getStyle("A{$row}")->applyFromArray($sLeft);
+                $row++;
+
+                $row++; // separador vacío
+                return $row;
+            };
+
+            if ($tipo === 'F') {
+                // ── KARDEX FÍSICO ─────────────────────────────────────────
+                $saldo_anterior = floatval(
+                    DB::table('productos_log as pl')
+                        ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                        ->where('pl.id_pro', $id_pro)
+                        ->where('pl.productos_log_fecha', '<', $fecha_desde)
+                        ->selectRaw("COALESCE(
+                            SUM(CASE WHEN tm.tipo_movimiento_tipo='E' THEN pl.productos_log_cantidad ELSE 0 END) -
+                            SUM(CASE WHEN tm.tipo_movimiento_tipo='S' THEN pl.productos_log_cantidad ELSE 0 END)
+                        , 0) AS saldo")
+                        ->value('saldo')
+                );
+
+                $sheet->setTitle('Kardex Fisico');
+                foreach (['A' => 14, 'B' => 32, 'C' => 22, 'D' => 14, 'E' => 14, 'F' => 14] as $col => $w) {
+                    $sheet->getColumnDimension($col)->setWidth($w);
+                }
+
+                $row = $writeHeader();
+
+                // Encabezado columnas
+                foreach (['A' => 'FECHA', 'B' => 'TIPO MOVIMIENTO', 'C' => 'DOCUMENTO', 'D' => 'ENTRADA', 'E' => 'SALIDA', 'F' => 'SALDO'] as $col => $label) {
+                    $sheet->setCellValue("{$col}{$row}", $label);
+                }
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray(['font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']], 'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]]);
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sFill('FF1E3C82'));
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sBorder);
+                $sheet->getRowDimension($row)->setRowHeight(16);
+                $row++;
+
+                // Saldo anterior
+                $sheet->setCellValue("B{$row}", 'SALDO ANTERIOR');
+                $sheet->setCellValue("F{$row}", $saldo_anterior);
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sBorder);
+                $sheet->getStyle("B{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("F{$row}")->applyFromArray($sRight);
+                $nFmt($sheet, "F{$row}", '#,##0.00');
+                $row++;
+
+                $saldo = $saldo_anterior;
+                $tot_e = 0.0; $tot_s = 0.0; $alt = false;
+
+                foreach ($movimientos as $mov) {
+                    $cant = floatval($mov->productos_log_cantidad);
+                    if ($mov->tipo_movimiento_tipo === 'E') {
+                        $saldo += $cant; $tot_e += $cant;
+                        $sheet->setCellValue("D{$row}", $cant);
+                    } else {
+                        $saldo -= $cant; $tot_s += $cant;
+                        $sheet->setCellValue("E{$row}", $cant);
+                    }
+                    $sheet->setCellValue("A{$row}", date('d/m/Y', strtotime($mov->productos_log_fecha)));
+                    $sheet->setCellValue("B{$row}", $mov->tipo_movimiento_descripcion);
+                    $sheet->setCellValue("C{$row}", $mov->productos_log_documento ?? '');
+                    $sheet->setCellValue("F{$row}", $saldo);
+                    $bg = $alt ? 'FFF0F4FF' : 'FFFFFFFF';
+                    $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sBorder);
+                    $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sFill($bg));
+                    $sheet->getStyle("A{$row}")->applyFromArray($sCenter);
+                    $sheet->getStyle("D{$row}:F{$row}")->applyFromArray($sRight);
+                    $nFmt($sheet, "D{$row}:F{$row}", '#,##0.00');
+                    $alt = !$alt; $row++;
+                }
+
+                // Totales
+                $sheet->setCellValue("A{$row}", 'TOTALES');
+                $sheet->mergeCells("A{$row}:C{$row}");
+                $sheet->setCellValue("D{$row}", $tot_e);
+                $sheet->setCellValue("E{$row}", $tot_s);
+                $sheet->setCellValue("F{$row}", $saldo);
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray(['font' => ['bold' => true]]);
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sFill('FFD2DAF0'));
+                $sheet->getStyle("A{$row}:F{$row}")->applyFromArray($sBorder);
+                $sheet->getStyle("A{$row}")->applyFromArray($sRight);
+                $sheet->getStyle("D{$row}:F{$row}")->applyFromArray($sRight);
+                $nFmt($sheet, "D{$row}:F{$row}", '#,##0.00');
+
+            } else {
+                // ── KARDEX VALORIZADO ─────────────────────────────────────
+                $historial = DB::table('productos_log as pl')
+                    ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
+                    ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_fecha', '<', $fecha_desde)
+                    ->select('pl.productos_log_cantidad', 'pl.productos_log_costo_unitario', 'tm.tipo_movimiento_tipo')
+                    ->orderBy('pl.productos_log_fecha')->orderBy('pl.id_productos_log')
+                    ->get();
+
+                $saldo_cant = 0.0; $saldo_prom = 0.0;
+                foreach ($historial as $h) {
+                    $hq = floatval($h->productos_log_cantidad);
+                    $hc = floatval($h->productos_log_costo_unitario);
+                    if ($h->tipo_movimiento_tipo === 'E') {
+                        $saldo_prom = ($saldo_cant + $hq > 0) ? ($saldo_cant * $saldo_prom + $hq * $hc) / ($saldo_cant + $hq) : $hc;
+                        $saldo_cant += $hq;
+                    } else {
+                        $saldo_cant = max(0.0, $saldo_cant - $hq);
+                    }
+                }
+
+                $sheet->setTitle('Kardex Valorizado');
+                $lastCol = 'L';
+                foreach (['A' => 14, 'B' => 26, 'C' => 18, 'D' => 12, 'E' => 14, 'F' => 14, 'G' => 12, 'H' => 14, 'I' => 14, 'J' => 12, 'K' => 14, 'L' => 14] as $col => $w) {
+                    $sheet->getColumnDimension($col)->setWidth($w);
+                }
+
+                $row = $writeHeader();
+
+                // Colores
+                $cGray  = 'FF3D4451'; $cGreen = 'FF15803D'; $cRed = 'FFB91C1C'; $cBlue = 'FF1E3C82';
+                $whiteFont = ['font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']], 'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+
+                // Fila 1: grupos
+                foreach (['A', 'B', 'C'] as $col) { $sheet->setCellValue("{$col}{$row}", ''); $sheet->getStyle("{$col}{$row}")->applyFromArray($sFill($cGray)); }
+                $sheet->setCellValue("D{$row}", 'ENTRADAS'); $sheet->mergeCells("D{$row}:F{$row}"); $sheet->getStyle("D{$row}:F{$row}")->applyFromArray($sFill($cGreen));
+                $sheet->setCellValue("G{$row}", 'SALIDAS');  $sheet->mergeCells("G{$row}:I{$row}"); $sheet->getStyle("G{$row}:I{$row}")->applyFromArray($sFill($cRed));
+                $sheet->setCellValue("J{$row}", 'SALDO');    $sheet->mergeCells("J{$row}:L{$row}"); $sheet->getStyle("J{$row}:L{$row}")->applyFromArray($sFill($cBlue));
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($whiteFont);
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sBorder);
+                $sheet->getRowDimension($row)->setRowHeight(16);
+                $row++;
+
+                // Fila 2: sub-columnas
+                $subMap = ['A' => ['FECHA', $cGray], 'B' => ['TIPO MOV.', $cGray], 'C' => ['DOCUMENTO', $cGray], 'D' => ['CANT.', $cGreen], 'E' => ['C. UNIT.', $cGreen], 'F' => ['TOTAL', $cGreen], 'G' => ['CANT.', $cRed], 'H' => ['C. UNIT.', $cRed], 'I' => ['TOTAL', $cRed], 'J' => ['CANT.', $cBlue], 'K' => ['C. UNIT.', $cBlue], 'L' => ['TOTAL', $cBlue]];
+                foreach ($subMap as $col => [$label, $color]) {
+                    $sheet->setCellValue("{$col}{$row}", $label);
+                    $sheet->getStyle("{$col}{$row}")->applyFromArray($sFill($color));
+                    $sheet->getStyle("{$col}{$row}")->applyFromArray($whiteFont);
+                }
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sBorder);
+                $sheet->getRowDimension($row)->setRowHeight(16);
+                $row++;
+
+                // Saldo anterior
+                $sheet->setCellValue("B{$row}", 'SALDO ANTERIOR');
+                $sheet->setCellValue("J{$row}", $saldo_cant);
+                $sheet->setCellValue("K{$row}", $saldo_prom);
+                $sheet->setCellValue("L{$row}", $saldo_cant * $saldo_prom);
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sBorder);
+                $sheet->getStyle("B{$row}")->getFont()->setBold(true);
+                $sheet->getStyle("J{$row}:L{$row}")->applyFromArray($sRight);
+                $nFmt($sheet, "J{$row}:L{$row}", '#,##0.00');
+                $nFmt($sheet, "K{$row}", '#,##0.0000');
+                $row++;
+
+                $tot_ec = 0.0; $tot_et = 0.0; $tot_sc = 0.0; $tot_st = 0.0; $alt = false;
+
+                foreach ($movimientos as $mov) {
+                    $cant  = floatval($mov->productos_log_cantidad);
+                    $costo = floatval($mov->productos_log_costo_unitario);
+
+                    if ($mov->tipo_movimiento_tipo === 'E') {
+                        $saldo_prom = ($saldo_cant + $cant > 0) ? ($saldo_cant * $saldo_prom + $cant * $costo) / ($saldo_cant + $cant) : $costo;
+                        $saldo_cant += $cant;
+                        $tot_entrada = $cant * $costo;
+                        $tot_ec += $cant; $tot_et += $tot_entrada;
+                        $sheet->setCellValue("D{$row}", $cant);
+                        $sheet->setCellValue("E{$row}", $costo);
+                        $sheet->setCellValue("F{$row}", $tot_entrada);
+                    } else {
+                        $costo_s = floatval($mov->productos_log_costo_unitario);
+                        $tot_s   = $cant * $costo_s;
+                        $saldo_cant = max(0.0, $saldo_cant - $cant);
+                        $tot_sc += $cant; $tot_st += $tot_s;
+                        $sheet->setCellValue("G{$row}", $cant);
+                        $sheet->setCellValue("H{$row}", $costo_s);
+                        $sheet->setCellValue("I{$row}", $tot_s);
+                    }
+
+                    $sheet->setCellValue("A{$row}", date('d/m/Y', strtotime($mov->productos_log_fecha)));
+                    $sheet->setCellValue("B{$row}", $mov->tipo_movimiento_descripcion);
+                    $sheet->setCellValue("C{$row}", $mov->productos_log_documento ?? '');
+                    $sheet->setCellValue("J{$row}", $saldo_cant);
+                    $sheet->setCellValue("K{$row}", $saldo_prom);
+                    $sheet->setCellValue("L{$row}", $saldo_cant * $saldo_prom);
+
+                    $bg = $alt ? 'FFF0F4FF' : 'FFFFFFFF';
+                    $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sBorder);
+                    $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sFill($bg));
+                    $sheet->getStyle("A{$row}")->applyFromArray($sCenter);
+                    $sheet->getStyle("D{$row}:L{$row}")->applyFromArray($sRight);
+                    $nFmt($sheet, "D{$row}:L{$row}", '#,##0.00');
+                    $nFmt($sheet, "E{$row}", '#,##0.0000');
+                    $nFmt($sheet, "H{$row}", '#,##0.0000');
+                    $nFmt($sheet, "K{$row}", '#,##0.0000');
+                    $alt = !$alt; $row++;
+                }
+
+                // Totales
+                $sheet->setCellValue("A{$row}", 'TOTALES');
+                $sheet->mergeCells("A{$row}:C{$row}");
+                $sheet->setCellValue("D{$row}", $tot_ec); $sheet->setCellValue("E{$row}", ''); $sheet->setCellValue("F{$row}", $tot_et);
+                $sheet->setCellValue("G{$row}", $tot_sc); $sheet->setCellValue("H{$row}", ''); $sheet->setCellValue("I{$row}", $tot_st);
+                $sheet->setCellValue("J{$row}", $saldo_cant); $sheet->setCellValue("K{$row}", $saldo_prom); $sheet->setCellValue("L{$row}", $saldo_cant * $saldo_prom);
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray(['font' => ['bold' => true]]);
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sFill('FFD2DAF0'));
+                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray($sBorder);
+                $sheet->getStyle("A{$row}")->applyFromArray($sRight);
+                $sheet->getStyle("D{$row}:L{$row}")->applyFromArray($sRight);
+                $nFmt($sheet, "D{$row}:L{$row}", '#,##0.00');
+                $nFmt($sheet, "K{$row}", '#,##0.0000');
+            }
+
+            $writer   = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $filename = 'kardex_' . ($tipo === 'F' ? 'fisico' : 'valorizado') . '_' . date('Ymd') . '.xlsx';
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, $filename, [
+                'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Cache-Control'       => 'max-age=0',
+            ]);
+
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response('Error al generar Kardex Excel: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function _kx_cabecera(CustomFpdf $pdf, $empresa, string $titulo, $producto, string $desde, string $hasta): void
+    {
+        $uw = $pdf->GetPageWidth() - 20;
+
+        $logo    = $empresa->empresa_foto_ticket ?? '';
+        $hasLogo = $logo && file_exists($logo);
+        if ($hasLogo) {
+            $pdf->Image($logo, 15, 6, 45, 20);
+        }
+        $xT = $hasLogo ? 43 : 10;
+        $wT = $hasLogo ? $uw - 33 : $uw;
+
+        $pdf->SetXY($xT, 11);
+        $pdf->SetFont('Helvetica', 'B', 12);
+        $pdf->SetTextColor(26, 26, 26);
+        $pdf->MultiCell($wT, 6, utf8_decode($empresa->empresa_razon_social ?? ''), 0, 'C');
+        $pdf->SetX($xT);
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->SetTextColor(60, 60, 60);
+        $pdf->MultiCell($wT, 4, utf8_decode(($empresa->empresa_domiciliofiscal ?? '') . '  |  RUC: ' . ($empresa->empresa_ruc ?? '')), 0, 'C');
+
+        $pdf->Ln(5);
+        $pdf->SetFillColor(30, 60, 130);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('Helvetica', 'B', 10);
+        $pdf->SetX(10);
+        $pdf->Cell($uw, 7, $titulo, 0, 1, 'C', true);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->Ln(2);
+
+        $half = $uw / 2;
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->SetX(10);
+        $pdf->Cell(28, 5, 'PRODUCTO:', 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell($half - 28, 5, utf8_decode($producto->pro_nombre ?? ''), 0, 0, 'L');
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->Cell(24, 5, utf8_decode('PERÍODO:'), 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell(0, 5, date('d/m/Y', strtotime($desde)) . ' al ' . date('d/m/Y', strtotime($hasta)), 0, 1, 'L');
+
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->SetX(10);
+        $pdf->Cell(28, 5, utf8_decode('CÓDIGO:'), 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell($half - 28, 5, $producto->pro_codigo ?? '', 0, 0, 'L');
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->Cell(24, 5, 'TIPO:', 0, 0, 'L');
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell(0, 5, $titulo, 0, 1, 'L');
+
+        $pdf->SetDrawColor(30, 60, 130);
+        $pdf->SetLineWidth(0.4);
+        $pdf->Line(10, $pdf->GetY() + 1, 10 + $uw, $pdf->GetY() + 1);
+        $pdf->SetLineWidth(0.3);
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->Ln(4);
+    }
+
     public function guardar_guia(Request $request)
     {
         try {
@@ -1103,6 +1765,7 @@ class LogisticaController extends Controller
 
             // Descontar stock solo cuando la guía NO está vinculada a una venta
             if (!$id_venta) {
+                $serie_guia = $prefijo . '-' . str_pad($correlativo, 8, '0', STR_PAD_LEFT);
                 foreach ($descripciones as $i => $desc) {
                     if (empty($desc)) continue;
                     $id_pro   = $id_pros[$i] ?: null;
@@ -1116,6 +1779,16 @@ class LogisticaController extends Controller
                     DB::table('productos')
                         ->where('id_pro', $id_pro)
                         ->update(['pro_stock' => $nuevo_stock]);
+
+                    DB::table('productos_log')->insert([
+                        'id_pro'                      => $id_pro,
+                        'id_tipo_movimiento_producto' => 5,
+                        'productos_log_fecha'         => $request->input('guia_emision', date('Y-m-d')),
+                        'productos_log_cantidad'      => $cantidad,
+                        'productos_log_costo_unitario'=> floatval($producto->pro_costo_promedio ?? 0),
+                        'productos_log_documento'     => $serie_guia,
+                        'productos_log_referencia_id' => $id_guia,
+                    ]);
                 }
             }
 

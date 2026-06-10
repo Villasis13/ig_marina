@@ -1,4 +1,5 @@
 let movimientos_productos =  [];
+let mvSearchTimer = null;
 let ventas_prtoductos =  [];
 let cuotas_venta = [];
 let proformas_productos = [];
@@ -82,53 +83,68 @@ function buscar_movientos_productos(){
 
 let buscar_productos_movientos = document.getElementById('buscar_productos_movientos');
 if(buscar_productos_movientos && buscar_productos_movientos.addEventListener){
-    buscar_productos_movientos.addEventListener('keyup',function (){
-        buscador_productos_movimientos(this.id)
+    buscar_productos_movientos.addEventListener('input', function () {
+        clearTimeout(mvSearchTimer);
+        const val = this.value.trim();
+        const dd = document.getElementById('mv_productos_dropdown');
+        if (val.length < 2) {
+            dd.innerHTML = '';
+            dd.classList.remove('open');
+            return;
+        }
+        mvSearchTimer = setTimeout(() => buscador_productos_movimientos(val), 280);
+    });
+    buscar_productos_movientos.addEventListener('focus', function () {
+        const dd = document.getElementById('mv_productos_dropdown');
+        if (dd.innerHTML) dd.classList.add('open');
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.mv-search-wrap')) {
+            const dd = document.getElementById('mv_productos_dropdown');
+            if (dd) dd.classList.remove('open');
+        }
     });
 }
 let arrRecursos = []
-function buscador_productos_movimientos(id){
-    let valor = $('#'+id).val();
+function buscador_productos_movimientos(valor){
     $.ajax({
         type: "POST",
         url: ruta_global + "Gestionventas/buscar_productos",
         data:{
-            valor:valor,
-            medida:58,
+            valor: valor,
             "_token": $("meta[name='csrf-token']").attr("content")
         },
         dataType: 'json',
     }).done(function(r){
-        arrRecursos = '';
-        let datos = r.result.code
-        arrRecursos = [];
-        let body = "";
-        if(datos.length > 0 ){
-            datos.map(function(el,index){
-                body +=
-                    `
-                        <a class="list-group-item list-group-item-action" style="cursor: pointer!important;" onclick="capturar_valor_movimientos_productos(${el.id_pro},'${el.pro_nombre}')" >${el.pro_nombre}</a>
-                    `
-            })
-        }else{
-            body +=
-                `
-                    <a class="list-group-item list-group-item-action">Sin Registros existente</a>
-                `
+        const dd = document.getElementById('mv_productos_dropdown');
+        if (!dd) return;
+        let datos = r.result.code;
+        let html = '';
+        if (datos && datos.length > 0) {
+            datos.forEach(function(p) {
+                const nombre  = (p.pro_nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const codigo  = p.pro_codigo || '';
+                const faNombre = p.fa_nombre || '';
+                const faCodigo = p.familia_codigo || '';
+                const famHtml  = faNombre
+                    ? `<span class="mv-drop-fam">${faCodigo} - ${faNombre}</span>`
+                    : '';
+                html += `<div class="mv-drop-item" onclick="capturar_valor_movimientos_productos(${p.id_pro},'${nombre}')">
+                    <div class="mv-drop-name">${p.pro_nombre}</div>
+                    <div class="mv-drop-meta"><span class="mv-drop-code">${codigo}</span>${famHtml}</div>
+                </div>`;
+            });
+        } else {
+            html = `<div class="mv-drop-empty">Sin resultados para "${$('<div>').text(valor).html()}"</div>`;
         }
-        $('#lista_productos_movimientos').html(body);
-    });
-
-    $(document).click(function() {
-        var container = $('#lista_productos_movimientos');
-        if (!container.is(event.target) && !container.has(event.target).length) {
-            container.html("");
-        }
+        dd.innerHTML = html;
+        dd.classList.add('open');
     });
 }
 
-function capturar_valor_movimientos_productos(id,nombre ){
-    // $('#lista_productos_movimientos').html(" ");
+function capturar_valor_movimientos_productos(id, nombre) {
+    const dd = document.getElementById('mv_productos_dropdown');
+    if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
     $('#buscar_productos_movientos').val("");
     let conteo = 1;
     if(movimientos_productos.length > 0){

@@ -1,5 +1,44 @@
 @extends('layouts.plantilla')
 @section('content')
+<style>
+.ri-search-label { display:block; font-size:11.5px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.ri-search-wrap  { position:relative; }
+.ri-search-icon  { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#64748b; font-size:13px; pointer-events:none; }
+.ri-search-input {
+  width:100%; padding:9px 13px 9px 34px; font-size:13.5px;
+  border:1px solid #e2e8f0; border-radius:7px; background:#f1f5f9; color:#1e293b;
+  transition:border-color .15s,box-shadow .15s; outline:none;
+}
+.ri-search-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
+.ri-dropdown {
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999;
+  background:#fff; border:1px solid #e2e8f0; border-radius:8px;
+  box-shadow:0 8px 28px rgba(15,23,42,.13); max-height:280px; overflow-y:auto; display:none;
+}
+.ri-dropdown.open  { display:block; }
+.ri-drop-item      { padding:9px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background .12s; }
+.ri-drop-item:last-child { border-bottom:none; }
+.ri-drop-item:hover { background:#eff6ff; }
+.ri-drop-name  { font-size:13px; font-weight:600; color:#1e293b; }
+.ri-drop-meta  { font-size:11px; color:#64748b; margin-top:2px; }
+.ri-drop-code  { font-family:monospace; color:#6b7280; }
+.ri-drop-fam   { color:#2563eb; margin-left:6px; }
+.ri-drop-empty { padding:12px 14px; font-size:13px; color:#64748b; font-style:italic; }
+
+.ri-selected {
+  display:none; align-items:center; gap:10px;
+  background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
+  padding:8px 14px; margin-top:8px;
+}
+.ri-selected.visible { display:flex; }
+.ri-selected-badge { background:#2563eb; color:#fff; font-size:10px; font-weight:700; letter-spacing:.4px; padding:2px 7px; border-radius:4px; flex-shrink:0; }
+.ri-selected-info  { flex:1; min-width:0; }
+.ri-selected-name  { font-size:13px; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ri-selected-meta  { font-size:11.5px; color:#64748b; margin-top:1px; }
+.ri-btn-clear      { background:none; border:none; cursor:pointer; color:#64748b; font-size:14px; padding:0; flex-shrink:0; transition:color .12s; }
+.ri-btn-clear:hover { color:#dc2626; }
+</style>
+
 <div class="tab-content">
     <div class="tab-pane fade show active">
         <div class="col-lg-12 mb-3">
@@ -15,13 +54,17 @@
         <form action="{{ route('reporte.reporte_inventario') }}" method="POST">
             @csrf
             <input type="hidden" name="enviar" value="1">
+            <input type="hidden" name="id_pro_filtro" id="ri_id_pro" value="{{ $id_pro_filtro ?? '' }}">
+
             <div class="row">
+                {{-- Período --}}
                 <div class="col-lg-2 col-md-3 col-sm-12 mb-2">
                     <div class="card">
                         <div class="card-body">
                             @foreach([['d','Diario'],['s','Semanal'],['q','Quincenal'],['m','Mensual'],['tri','Trimestral'],['sem','Semestral'],['a','Anual']] as $op)
                             <div class="mb-2">
-                                <input onclick="cambiar_fec_general()" type="radio" name="opcion" id="op_{{$op[0]}}" value="{{$op[0]}}" {{$check==$op[0]?'checked':''}}>
+                                <input onclick="cambiar_fec_general()" type="radio" name="opcion"
+                                       id="op_{{$op[0]}}" value="{{$op[0]}}" {{$check==$op[0]?'checked':''}}>
                                 <label for="op_{{$op[0]}}">{{$op[1]}}</label>
                             </div>
                             @endforeach
@@ -33,23 +76,48 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="row g-2 align-items-end">
-                                <div class="col-lg-3 col-md-4 col-sm-12">
+
+                                {{-- Buscador de producto --}}
+                                <div class="col-lg-4 col-md-12 col-sm-12">
+                                    <label class="ri-search-label">
+                                        <i class="fa-solid fa-magnifying-glass"></i> Producto (opcional)
+                                    </label>
+                                    <div class="ri-search-wrap">
+                                        <i class="fa-solid fa-magnifying-glass ri-search-icon"></i>
+                                        <input type="text" id="ri_buscar_input" class="ri-search-input"
+                                               placeholder="Todos los productos…" autocomplete="off">
+                                        <div id="ri_dropdown" class="ri-dropdown"></div>
+                                    </div>
+                                    <div id="ri_selected" class="ri-selected {{ ($id_pro_filtro ?? '') ? 'visible' : '' }}">
+                                        <span class="ri-selected-badge">Filtro</span>
+                                        <div class="ri-selected-info">
+                                            <div class="ri-selected-name" id="ri_selected_name">{{ $pro_filtro_nombre ?? '' }}</div>
+                                            <div class="ri-selected-meta" id="ri_selected_meta">{{ $pro_filtro_codigo ?? '' }}</div>
+                                        </div>
+                                        <button type="button" class="ri-btn-clear" onclick="riClearProduct()" title="Quitar filtro">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-2 col-md-4 col-sm-12">
                                     <label>Fecha Inicio:</label>
                                     <input type="date" class="form-control" name="desde" id="desde" value="{{$fecha_inicio}}">
                                 </div>
-                                <div class="col-lg-3 col-md-4 col-sm-12">
+                                <div class="col-lg-2 col-md-4 col-sm-12">
                                     <label>Fecha Fin:</label>
                                     <input type="date" class="form-control" name="hasta" id="hasta" value="{{$fecha_fin}}">
                                 </div>
                                 <div class="col-lg-2 col-md-4 col-sm-12">
-                                    <button type="submit" class="btn btn-info w-100 mt-3"><i class="bx bx-search-alt"></i> Buscar</button>
+                                    <button type="submit" class="btn btn-info w-100"><i class="bx bx-search-alt"></i> Buscar</button>
                                 </div>
                                 @if($buscado)
-                                <div class="col-lg-2 col-md-3 col-sm-12">
-                                    <a href="{{ route('reporte.reporte_inventario_excel') }}?desde={{$fecha_inicio}}&hasta={{$fecha_fin}}" class="btn btn-success w-100 mt-3" target="_blank"><i class="fa fa-file-excel"></i> Excel</a>
+                                @php $qStr = '?desde='.$fecha_inicio.'&hasta='.$fecha_fin.($id_pro_filtro?'&id_pro='.$id_pro_filtro:''); @endphp
+                                <div class="col-lg-auto col-md-3 col-sm-12">
+                                    <a href="{{ route('reporte.reporte_inventario_excel') }}{{$qStr}}" class="btn btn-success" target="_blank"><i class="fa fa-file-excel"></i> Excel</a>
                                 </div>
-                                <div class="col-lg-2 col-md-3 col-sm-12">
-                                    <a href="{{ route('reporte.reporte_inventario_pdf') }}?desde={{$fecha_inicio}}&hasta={{$fecha_fin}}" class="btn btn-danger w-100 mt-3" target="_blank"><i class="fa fa-file-pdf"></i> PDF</a>
+                                <div class="col-lg-auto col-md-3 col-sm-12">
+                                    <a href="{{ route('reporte.reporte_inventario_pdf') }}{{$qStr}}" class="btn btn-danger" target="_blank"><i class="fa fa-file-pdf"></i> PDF</a>
                                 </div>
                                 @endif
                             </div>
@@ -145,6 +213,7 @@
                             </div>
                             @else <div class="text-center py-4 text-muted">Sin salidas en el período.</div> @endif
                         </div>
+
                     </div>
                     @endif
                 </div>
@@ -152,14 +221,92 @@
         </form>
     </div>
 </div>
+
 <script src="{{asset('js/domain.js')}}"></script>
 <script src="{{asset('js/reporte.js')}}"></script>
 <script>
 $(document).ready(function(){
-    @if($buscado && count($stock) > 0) $('#tbl_stock').DataTable({paging:false,info:false,searching:true}); @endif
+    @if($buscado && count($stock) > 0)    $('#tbl_stock').DataTable({paging:false,info:false,searching:true}); @endif
     @if($buscado && count($vendidos) > 0) $('#tbl_vendidos').DataTable({paging:false,info:false,searching:true}); @endif
     @if($buscado && count($entradas) > 0) $('#tbl_entradas').DataTable({paging:false,info:false,searching:true}); @endif
-    @if($buscado && count($salidas) > 0) $('#tbl_salidas').DataTable({paging:false,info:false,searching:true}); @endif
+    @if($buscado && count($salidas) > 0)  $('#tbl_salidas').DataTable({paging:false,info:false,searching:true}); @endif
 });
+
+let riSearchTimer = null;
+let riProductSelected = {{ ($id_pro_filtro ?? '') ? 'true' : 'false' }};
+
+const riInput    = document.getElementById('ri_buscar_input');
+const riDropdown = document.getElementById('ri_dropdown');
+
+riInput.addEventListener('input', function () {
+    clearTimeout(riSearchTimer);
+    const val = this.value.trim();
+    if (val.length < 2) {
+        riDropdown.innerHTML = '';
+        riDropdown.classList.remove('open');
+        return;
+    }
+    riSearchTimer = setTimeout(() => riSearch(val), 280);
+});
+
+riInput.addEventListener('focus', function () {
+    if (riDropdown.innerHTML && !riProductSelected) riDropdown.classList.add('open');
+});
+
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.ri-search-wrap')) riDropdown.classList.remove('open');
+});
+
+function riSearch(valor) {
+    $.ajax({
+        type: 'POST',
+        url: ruta_global + 'Gestionventas/buscar_productos',
+        data: { valor: valor, _token: $("meta[name='csrf-token']").attr('content') },
+        dataType: 'json',
+    }).done(function (r) {
+        const items = r.result.code;
+        let html = '';
+        if (items && items.length > 0) {
+            items.forEach(function (p) {
+                const nombre   = (p.pro_nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const codigo   = p.pro_codigo || '';
+                const faNombre = p.fa_nombre || '';
+                const faCodigo = p.familia_codigo || '';
+                const famHtml  = faNombre ? `<span class="ri-drop-fam">${faCodigo} - ${faNombre}</span>` : '';
+                html += `<div class="ri-drop-item" onclick="riSelect(${p.id_pro},'${nombre}','${codigo}','${faNombre}','${faCodigo}')">
+                    <div class="ri-drop-name">${p.pro_nombre}</div>
+                    <div class="ri-drop-meta"><span class="ri-drop-code">${codigo}</span>${famHtml}</div>
+                </div>`;
+            });
+        } else {
+            html = `<div class="ri-drop-empty">Sin resultados para "${$('<div>').text(valor).html()}"</div>`;
+        }
+        riDropdown.innerHTML = html;
+        riDropdown.classList.add('open');
+    });
+}
+
+function riSelect(id, nombre, codigo, faNombre, faCodigo) {
+    document.getElementById('ri_id_pro').value = id;
+    document.getElementById('ri_selected_name').textContent = nombre;
+    let meta = codigo ? 'Cód: ' + codigo : '';
+    if (faNombre) meta += (meta ? '  ·  ' : '') + faCodigo + ' - ' + faNombre;
+    document.getElementById('ri_selected_meta').textContent = meta;
+    document.getElementById('ri_selected').classList.add('visible');
+    riInput.value = '';
+    riInput.placeholder = 'Producto seleccionado — haz clic en × para todos';
+    riDropdown.classList.remove('open');
+    riDropdown.innerHTML = '';
+    riProductSelected = true;
+}
+
+function riClearProduct() {
+    document.getElementById('ri_id_pro').value = '';
+    document.getElementById('ri_selected').classList.remove('visible');
+    riInput.value = '';
+    riInput.placeholder = 'Todos los productos…';
+    riProductSelected = false;
+    riInput.focus();
+}
 </script>
 @endsection

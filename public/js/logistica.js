@@ -1,4 +1,5 @@
 let array_orden_compra = [];
+let ocSearchTimer = null;
 let btn_crear_productos = document.getElementById('btn_crear_productos');
 if(btn_crear_productos && btn_crear_productos.addEventListener){
     btn_crear_productos.addEventListener('click',function (){
@@ -184,62 +185,74 @@ function eliminar_producto(id){
 }
 
 let productos_orden_compra = document.getElementById('productos_orden_compra');
-if(productos_orden_compra && productos_orden_compra.addEventListener){
-    productos_orden_compra.addEventListener('keyup',function (){
-        listar_productos_orden_compra(this.id)
+if (productos_orden_compra && productos_orden_compra.addEventListener) {
+    productos_orden_compra.addEventListener('input', function () {
+        clearTimeout(ocSearchTimer);
+        const val = this.value.trim();
+        const dd = document.getElementById('oc_productos_dropdown');
+        if (val.length < 2) {
+            dd.innerHTML = '';
+            dd.classList.remove('open');
+            return;
+        }
+        ocSearchTimer = setTimeout(() => listar_productos_orden_compra(val), 280);
     });
-}
-
-function listar_productos_orden_compra(id){
-    let valor = $('#'+id).val();
-    // let estado = $('#id_tipo_venta').val();
-    if(valor.length>0){
-        $.ajax({
-            type: "POST",
-            url: ruta_global + "logistica/buscador_productos",
-            data:{
-                valor:valor,
-                medida:58,
-                "_token": $("meta[name='csrf-token']").attr("content")
-            },
-            dataType: 'json',
-        }).done(function(r){
-            let datos = r.result.code;
-            let body = "";
-            if(datos.length > 0 ){
-                datos.map(function(el,index){
-                    let familiaInfo = el.fa_nombre
-                        ? ` - <small class="text-secondary">${el.familia_codigo||''} ${el.fa_nombre}</small>`
-                        : '';
-                    body +=
-                        `<a class="list-group-item list-group-item-action" style="cursor:pointer!important;"
-                            onclick="capturar_datos_orden_compra(${el.id_pro},'${el.pro_nombre}','${el.pro_codigo||''}','${el.fa_nombre||''}','${el.familia_codigo||''}',${el.control_serie||0},${el.control_lote||0})">
-                            ${el.pro_nombre} - <small class="text-muted">${el.pro_codigo||''}</small>${familiaInfo}
-                        </a>`
-                })
-            }else{
-                body +=
-                    `
-                        <a class="list-group-item list-group-item-action" >Sin Registros existente</a>
-                    `
-            }
-            $('#listar_productos_orden_compra').html(body);
-        });
-    }else{
-        $('#listar_productos_orden_compra').html('');
-    }
-    $(document).click(function() {
-        var container = $('#listar_productos_orden_compra');
-        if (!container.is(event.target) && !container.has(event.target).length) {
-            container.html("");
+    productos_orden_compra.addEventListener('focus', function () {
+        const dd = document.getElementById('oc_productos_dropdown');
+        if (dd.innerHTML) dd.classList.add('open');
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.oc-search-wrap')) {
+            const dd = document.getElementById('oc_productos_dropdown');
+            if (dd) dd.classList.remove('open');
         }
     });
-
 }
 
-function capturar_datos_orden_compra(id, producto, codigo, fa_nombre, familia_codigo, control_serie, control_lote){
+function listar_productos_orden_compra(valor) {
+    $.ajax({
+        type: "POST",
+        url: ruta_global + "logistica/buscador_productos",
+        data: {
+            valor: valor,
+            medida: 58,
+            "_token": $("meta[name='csrf-token']").attr("content")
+        },
+        dataType: 'json',
+    }).done(function (r) {
+        const dd = document.getElementById('oc_productos_dropdown');
+        if (!dd) return;
+        let datos = r.result.code;
+        let html = '';
+        if (datos && datos.length > 0) {
+            datos.forEach(function (p) {
+                const nombre    = (p.pro_nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const codigo    = p.pro_codigo || '';
+                const faNombre  = p.fa_nombre || '';
+                const faCodigo  = p.familia_codigo || '';
+                const cs        = p.control_serie || 0;
+                const cl        = p.control_lote  || 0;
+                const famHtml   = faNombre
+                    ? `<span class="oc-drop-fam">${faCodigo} - ${faNombre}</span>`
+                    : '';
+                html += `<div class="oc-drop-item"
+                    onclick="capturar_datos_orden_compra(${p.id_pro},'${nombre}','${codigo}','${faNombre}','${faCodigo}',${cs},${cl})">
+                    <div class="oc-drop-name">${p.pro_nombre}</div>
+                    <div class="oc-drop-meta"><span class="oc-drop-code">${codigo}</span>${famHtml}</div>
+                </div>`;
+            });
+        } else {
+            html = `<div class="oc-drop-empty">Sin resultados para "${$('<div>').text(valor).html()}"</div>`;
+        }
+        dd.innerHTML = html;
+        dd.classList.add('open');
+    });
+}
+
+function capturar_datos_orden_compra(id, producto, codigo, fa_nombre, familia_codigo, control_serie, control_lote) {
     $('#productos_orden_compra').val('');
-    $('#listar_productos_orden_compra').html('');
+    const dd = document.getElementById('oc_productos_dropdown');
+    if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
     let yaExiste = array_orden_compra.some(p => p.id_pro == id);
     if (yaExiste) {
         respuesta('No es posible ingresar un recurso más de una vez.', 'error');

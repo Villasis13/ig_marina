@@ -668,7 +668,7 @@
         }
         .rv-partir-label.rv-partir-active {
             background: var(--rv-primary);
-            color: #fff;
+            color: #fff !important;
         }
 
         /* ── Help text ── */
@@ -826,12 +826,6 @@
             });
         });
 
-        window.addEventListener('load', function() {
-            if(localStorage.getItem('ventas_productos')) {
-                ventas_prtoductos = JSON.parse(localStorage.getItem('ventas_productos'));
-                dibujar_tabla_ventas_productos();
-            }
-        });
 
         $('input[type="number"]').on('input', function() {
             if ($(this).val() < 0) $(this).val(0);
