@@ -1,5 +1,6 @@
 let movimientos_productos =  [];
 let mvSearchTimer = null;
+let _mvPendingProductoSerie = null;
 let ventas_prtoductos =  [];
 let cuotas_venta = [];
 let proformas_productos = [];
@@ -129,7 +130,7 @@ function buscador_productos_movimientos(valor){
                 const famHtml  = faNombre
                     ? `<span class="mv-drop-fam">${faCodigo} - ${faNombre}</span>`
                     : '';
-                html += `<div class="mv-drop-item" onclick="capturar_valor_movimientos_productos(${p.id_pro},'${nombre}')">
+                html += `<div class="mv-drop-item" onclick="capturar_valor_movimientos_productos(${p.id_pro},'${nombre}',${p.control_serie || 0})">
                     <div class="mv-drop-name">${p.pro_nombre}</div>
                     <div class="mv-drop-meta"><span class="mv-drop-code">${codigo}</span>${famHtml}</div>
                 </div>`;
@@ -142,36 +143,107 @@ function buscador_productos_movimientos(valor){
     });
 }
 
-function capturar_valor_movimientos_productos(id, nombre) {
+function capturar_valor_movimientos_productos(id, nombre, control_serie) {
+    control_serie = parseInt(control_serie) || 0;
     const dd = document.getElementById('mv_productos_dropdown');
     if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
     $('#buscar_productos_movientos').val("");
-    let conteo = 1;
-    if(movimientos_productos.length > 0){
-        for(let i = 0; i < movimientos_productos.length; i++){
-            if(movimientos_productos[i].id_producto == id){
-                conteo++;
-            }
+
+    // Duplicado
+    for (let i = 0; i < movimientos_productos.length; i++) {
+        if (movimientos_productos[i].id_producto == id) {
+            respuesta('No es posible ingresar un producto más de una vez.', 'error');
+            return;
         }
-        if(conteo == 1){
-            let obj = {
-                id_producto :id,
-                nombre_producto :nombre,
-                cantidad : 1,
-            }
-            movimientos_productos.push(obj);
-            dibujar_tabla_productos_()
-        }else{
-            respuesta('No es posible ingresar un producto más de una vez.', 'error')
+    }
+
+    let obj = {
+        id_producto: id,
+        nombre_producto: nombre,
+        cantidad: 1,
+        control_serie: control_serie,
+        id_serie_producto: null,
+        numero_serie: null,
+    };
+
+    if (control_serie === 1) {
+        _mvPendingProductoSerie = obj;
+        let tipoMov = $('#tipo_movimiento').val();
+        if (tipoMov == 2) {
+            // Salida: elegir serie disponible
+            $('#mv_serie_modal_producto_nombre').text(nombre);
+            $('#mv_tbody_series').html('<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>');
+            $('#mv_msg_sin_series').addClass('d-none');
+            $('#modal_mv_series_salida').modal('show');
+            $.ajax({
+                type: "POST",
+                url: ruta_global + "Gestionventas/buscar_series_producto",
+                data: { id_pro: id, "_token": $("meta[name='csrf-token']").attr("content") },
+                dataType: 'json',
+            }).done(function(r) {
+                let data = (r.result && r.result.data) ? r.result.data : [];
+                if (data.length > 0) {
+                    let body = '';
+                    data.forEach(function(s) {
+                        body += `<tr>
+                            <td>${s.numero_serie}</td>
+                            <td>${s.numero_motor || '---'}</td>
+                            <td>${s.color || '---'}</td>
+                            <td>${s.anio_fabricacion || '---'}</td>
+                            <td><button class="btn btn-sm btn-primary" onclick="mv_seleccionar_serie_salida(${s.id_serie_producto},'${s.numero_serie}')"><i class="fa fa-check"></i> Seleccionar</button></td>
+                        </tr>`;
+                    });
+                    $('#mv_tbody_series').html(body);
+                } else {
+                    $('#mv_tbody_series').html('');
+                    $('#mv_msg_sin_series').removeClass('d-none');
+                }
+            });
+        } else {
+            // Ingreso: registrar número de serie nuevo
+            $('#mv_ingreso_serie_nombre').text(nombre);
+            $('#mv_input_numero_serie').val('').removeClass('is-invalid');
+            $('#mv_input_numero_motor').val('');
+            $('#mv_input_color').val('');
+            $('#mv_input_anio_fabricacion').val('');
+            $('#modal_mv_ingreso_serie').modal('show');
         }
-    }else{
-        let obj = {
-            id_producto :id,
-            nombre_producto :nombre,
-            cantidad : 1,
-        }
+    } else {
         movimientos_productos.push(obj);
-        dibujar_tabla_productos_()
+        dibujar_tabla_productos_();
+    }
+}
+
+function mv_seleccionar_serie_salida(id_serie_producto, numero_serie) {
+    if (_mvPendingProductoSerie) {
+        _mvPendingProductoSerie.id_serie_producto = id_serie_producto;
+        _mvPendingProductoSerie.numero_serie = numero_serie;
+        movimientos_productos.push(_mvPendingProductoSerie);
+        _mvPendingProductoSerie = null;
+        dibujar_tabla_productos_();
+        $('#modal_mv_series_salida').modal('hide');
+        respuesta('Serie ' + numero_serie + ' agregada.', 'success');
+    }
+}
+
+function mv_confirmar_ingreso_serie() {
+    let num = $('#mv_input_numero_serie').val().trim();
+    if (!num) {
+        $('#mv_input_numero_serie').addClass('is-invalid');
+        respuesta('Debe ingresar el número de serie.', 'error');
+        return;
+    }
+    $('#mv_input_numero_serie').removeClass('is-invalid');
+    if (_mvPendingProductoSerie) {
+        _mvPendingProductoSerie.numero_serie        = num;
+        _mvPendingProductoSerie.numero_motor        = $('#mv_input_numero_motor').val().trim() || null;
+        _mvPendingProductoSerie.color               = $('#mv_input_color').val().trim() || null;
+        _mvPendingProductoSerie.anio_fabricacion    = $('#mv_input_anio_fabricacion').val().trim() || null;
+        movimientos_productos.push(_mvPendingProductoSerie);
+        _mvPendingProductoSerie = null;
+        dibujar_tabla_productos_();
+        $('#modal_mv_ingreso_serie').modal('hide');
+        respuesta('Serie ' + num + ' registrada.', 'success');
     }
 }
 function dibujar_tabla_productos_(){
@@ -180,12 +252,12 @@ function dibujar_tabla_productos_(){
     let num = 1;
     let body = ''
     if(tipoMovimiento == 1){
-        body = `<h6><span style="color: red">* Rojo si no hay stock de un recurso y no permitirá ingresar stock de producto</span></h6>
-                      <table class="table table-hover table-bordered">
+        body = `<table class="table table-hover table-bordered">
                       <thead>
                         <tr class="encabezado_tabla_color">
                             <th>#</th>
                             <th>Producto</th>
+                            <th>Nº Serie</th>
                             <th>Cantidad</th>
                             <th>Acción</th>
                         </tr>
@@ -193,82 +265,33 @@ function dibujar_tabla_productos_(){
                      <tbody>`;
         if(movimientos_productos.length > 0){
             movimientos_productos.map(function(el, index){
-                body+=
-                    `
-                             <tr>
+                let cantidadInput = el.control_serie
+                    ? `<input type="number" style="width:70px;" class="border-none outline-none" value="1" readonly>`
+                    : `<input type="number" style="width:70px;" id="cantidad_stock_${index}" class="border-none outline-none" name="cantidad_stock_${index}" value="${el.cantidad}" onchange="guardar_cantidad_stock_producto(${index})" onkeyup="validar_numeros(this.id)">`;
+                body += `<tr>
                                 <td>${num}</td>
                                 <td>${el.nombre_producto}</td>
-                                <td style="width: 70px;"><input type="number" style="width: 70px;" id="cantidad_stock_${index}" class="border-none outline-none"  name="cantidad_stock_${index}" value="${el.cantidad}" onchange="guardar_cantidad_stock_producto(${index})" onkeyup="validar_numeros(this.id)"></td>
-                `
-                //body+= `<td><ul>`
-                // arrRecursos.map(function (el2, index){
-                //     if (){
-                // let spanStyle = '';
-                // let list_recursos = ""
-                // let list_can_req = ""
-                // let list_can_stock = ""
-                // let newCantidad = 0
-                // arrRecursos.map(function(el2,index){
-                //     if (el2.id_producto == el.id_producto){
-                //         newCantidad = el2.detalle_recetas_cantidad * el.cantidad
-                //         spanStyle = "style='color: black;'"
-                //         if(newCantidad > el2.cantidad_convertida){
-                //             spanStyle = "style='color: red;'"
-                //             validarStock++;
-                //         }
-                //         list_recursos +=  `<span ${spanStyle}>- ${el2.recursos_nombre}</span><br>`
-                //         list_can_req +=  `<span ${spanStyle}>- ${newCantidad}</span><br>`
-                //         list_can_stock +=  `<span ${spanStyle}>- ${el2.cantidad_convertida}</span><br>`
-                //
-                //     }
-                // });
-                //
-                // body += `
-                //             <td style="width: 170px">
-                //                 ${list_recursos}
-                //             </td>
-                //
-                //             <td>
-                //                 ${list_can_req}
-                //             </td>
-                //             <td>
-                //                 ${list_can_stock}
-                //             </td>
-                //             `
-                // }
-                // })
-                // arrRecursos.forEach(function (rec){
-                //     if(rec.id_producto === el.id_producto){
-                //         body+= ``
-                //         body+= ``
-                //         body+= ``
-                //     }
-                //
-                // });
-                //body+= `</ul></td>`
-                body+= `
-                                <td style="width: 60px; text-align: center">
+                                <td>${el.numero_serie ? `<span class="badge bg-secondary">${el.numero_serie}</span>` : '---'}</td>
+                                <td style="width:70px;">${cantidadInput}</td>
+                                <td style="width:60px;text-align:center">
                                     <a class="btn btn-sm text-white bg-danger" title="Eliminar" type="button" onclick="eliminar_movimientos_productos(${index})"><i class="fa fa-trash"></i></a>
                                 </td>
-                            </tr>
-                        `
-                num++
-            })
+                            </tr>`;
+                num++;
+            });
         }
-        body+=
-            `</tbody>
-                </table>`
+        body += `</tbody></table>`;
         if(validarStock>0){
             $('#btn_guardar_movimientos_formu').hide();
         }
 
     }else {
-        body = `
-                      <table class="table table-hover table-bordered">
+        body = `<table class="table table-hover table-bordered">
                       <thead>
                         <tr class="encabezado_tabla_color">
                             <th>#</th>
                             <th>Producto</th>
+                            <th>Nº Serie</th>
                             <th>Cantidad</th>
                             <th>Acción</th>
                         </tr>
@@ -276,23 +299,22 @@ function dibujar_tabla_productos_(){
                      <tbody>`;
         if(movimientos_productos.length > 0){
             movimientos_productos.map(function(el, index){
-                body+=
-                    `
-                             <tr>
+                let cantidadInput = el.control_serie
+                    ? `<input type="number" style="width:70px;" class="border-none outline-none" value="1" readonly>`
+                    : `<input type="number" style="width:70px;" id="cantidad_stock_${index}" class="border-none outline-none" name="cantidad_stock_${index}" value="${el.cantidad}" onchange="guardar_cantidad_stock_producto(${index})" onkeyup="validar_numeros(this.id)">`;
+                body += `<tr>
                                 <td>${num}</td>
                                 <td>${el.nombre_producto}</td>
-                                <td style="width: 70px;"><input type="number" style="width: 70px;" id="cantidad_stock_${index}" class="border-none outline-none"  name="cantidad_stock_${index}" value="${el.cantidad}" onchange="guardar_cantidad_stock_producto(${index})" onkeyup="validar_numeros(this.id)"></td>
-                                <td style="width: 60px; text-align: center">
+                                <td>${el.numero_serie ? `<span class="badge bg-secondary">${el.numero_serie}</span>` : '---'}</td>
+                                <td style="width:70px;">${cantidadInput}</td>
+                                <td style="width:60px;text-align:center">
                                     <a class="btn btn-sm text-white bg-danger" title="Eliminar" type="button" onclick="eliminar_movimientos_productos(${index})"><i class="fa fa-trash"></i></a>
                                 </td>
-                            </tr>
-                        `
-                num++
-            })
+                            </tr>`;
+                num++;
+            });
         }
-        body+=
-            `</tbody>
-                </table>`
+        body += `</tbody></table>`;
         $('#btn_guardar_movimientos_formu').show();
 
     }
@@ -318,10 +340,29 @@ function activarMotivimiento(){
         $('#containerMotivo').show();
     }
 }
+// Limpiar modal de movimientos al abrirlo
+$('#modal_realizar_movimiento_producto').on('show.bs.modal', function () {
+    movimientos_productos = [];
+    _mvPendingProductoSerie = null;
+    $('#tabla_productos_realizar_movimientos').html('');
+    $('#motivo_operacion').val('').removeClass('is-invalid is-valid');
+    $('#tipo_movimiento').val('1');
+    $('#containerMotivo').hide();
+    $('#buscar_productos_movientos').val('');
+    $('#mv_productos_dropdown').html('').removeClass('open');
+    $('#btn_guardar_movimientos_formu').show();
+});
+
 $("#formulario_realizar_movimiento_producto").on('submit', function(e){
     e.preventDefault();
+    // Validar que haya al menos un producto
+    if (movimientos_productos.length === 0) {
+        respuesta('Debe agregar al menos un producto para registrar el movimiento', 'error');
+        return;
+    }
     var valor = true;
     let tipoMo = $('#tipo_movimiento').val();
+    // Motivo obligatorio solo para Salida
     if (tipoMo == 2){
         var motivo_operacion  = $('#motivo_operacion').val();
         valor = validar_campo_vacio('motivo_operacion', motivo_operacion, valor);
@@ -1319,21 +1360,17 @@ $("#formulario_generar_venta").on('submit', function(e){
         valor = validar_campo_vacio('id_tipo_pago', id_tipo_pago, valor);
     }
 
-    if(id_tipo_documento == 2){
-        if (numero_documento.length == 8){
-            valor == true
-        }else{
-            valor == false
-            respuesta('El numero de documento debe tener 8 caracteres', 'error')
-        }
+    if (id_tipo_documento == 2 && numero_documento && numero_documento.length !== 8) {
+        valor = false;
+        respuesta('El número de documento (DNI) debe tener 8 caracteres', 'error');
+        var elDoc = document.getElementById('numero_documento');
+        if (elDoc) { elDoc.classList.add('is-invalid'); elDoc.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     }
-    if(id_tipo_documento == 4){
-        if (numero_documento.length == 11){
-            valor == true
-        }else{
-            valor == false
-            respuesta('El numero de documento debe tener 11 caracteres', 'error')
-        }
+    if (id_tipo_documento == 4 && numero_documento && numero_documento.length !== 11) {
+        valor = false;
+        respuesta('El número de documento (RUC) debe tener 11 caracteres', 'error');
+        var elDoc = document.getElementById('numero_documento');
+        if (elDoc) { elDoc.classList.add('is-invalid'); elDoc.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     }
     // Auto-generar cuotas para condiciones predefinidas
     generarCuotasAutomaticas();

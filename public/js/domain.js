@@ -159,15 +159,19 @@ function quoteCheckboxesInContainer() {
 }
 function validar_campo_vacio(campo, valor, estado) {
     var objeto = document.getElementById(campo);
-    if(!valor){
-        respuesta('El siguiente Campo Resaltado no puede estar vacío', 'error');
+    if (!objeto) return estado;
+    if (!valor) {
+        if (estado) {
+            // Solo muestra el mensaje y hace scroll en el PRIMER campo inválido
+            respuesta('El campo resaltado no puede estar vacío', 'error');
+            objeto.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         estado = false;
-        objeto.classList.add('is-invalid'); // Agregar clase is-invalid si el campo está vacío
-        console.log('Campo vacio: ' + campo + " Valor: " + valor);
+        objeto.classList.add('is-invalid');
     } else {
         objeto.style.border = '';
-        objeto.classList.remove('is-invalid'); // Remover clase is-invalid si el campo está lleno
-        objeto.classList.add('is-valid'); // Agregar clase is-valid si el campo está lleno y es válido
+        objeto.classList.remove('is-invalid');
+        objeto.classList.add('is-valid');
     }
     return estado;
 }

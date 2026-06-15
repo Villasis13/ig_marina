@@ -430,11 +430,14 @@
           <div class="gg3">
             <div class="gf">
               <label>RUC Transportista</label>
-              <input type="text" name="guia_num_doc_trans" placeholder="20xxxxxxxxx" maxlength="11" style="font-family:monospace;">
+              {{-- input oculto fijo tipo RUC=4 para que consultarNumdocumento entre al branch de RUC --}}
+              <input type="hidden" id="_trans_tipo_doc" value="4">
+              <input type="text" name="guia_num_doc_trans" id="guia_num_doc_trans" placeholder="20xxxxxxxxx" maxlength="11" style="font-family:monospace;"
+                     oninput="if(this.value.length===11) consultarNumdocumento('_trans_tipo_doc','guia_num_doc_trans','guia_denominacion',null,null)">
             </div>
             <div class="gf">
               <label>Razón Social Transportista</label>
-              <input type="text" name="guia_denominacion" placeholder="Nombre de la empresa de transporte">
+              <input type="text" name="guia_denominacion" id="guia_denominacion" placeholder="Nombre de la empresa de transporte">
             </div>
             <div class="gf">
               <label>Tipo de Transporte <span class="req">*</span></label>
@@ -826,6 +829,9 @@ function desvincularFactura() {
   document.getElementById('input_id_clientes').value = '';
   document.getElementById('input_id_venta').value = '';
 
+  // Eliminar productos cargados desde la factura
+  limpiarItems();
+
   // Hide banner, show button
   document.getElementById('invoiceBanner').classList.remove('visible');
   document.getElementById('btnVincular').style.display = '';
@@ -939,7 +945,7 @@ function agregarItemDesdeFactura(item) {
   const row = document.createElement('tr');
   row.id = 'item-' + id;
   // id_pro se envía pero el controller NO descuenta stock porque hay id_venta vinculado
-  row.innerHTML = itemRowHTML(id, item.codigo || '', item.nombre || '', 'NIU', '1', '', true, item.id_pro || '');
+  row.innerHTML = itemRowHTML(id, item.codigo || '', item.nombre || '', 'NIU', item.cantidad || 1, '', true, item.id_pro || '');
   document.getElementById('itemsBody').appendChild(row);
   actualizarContador();
 }

@@ -146,6 +146,81 @@
     </div>
 
 
+    {{-- Modal seleccionar serie (Salida) --}}
+    <div class="modal fade" id="modal_mv_series_salida" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Seleccionar Número de Serie</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2">Producto: <strong id="mv_serie_modal_producto_nombre"></strong></p>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Nº Serie</th>
+                                    <th>Motor</th>
+                                    <th>Color</th>
+                                    <th>Año Fab.</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mv_tbody_series">
+                                <tr><td colspan="5" class="text-center text-muted">Cargando series...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="mv_msg_sin_series" class="text-danger d-none">No hay series disponibles para este producto.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal registrar serie (Ingreso) --}}
+    <div class="modal fade" id="modal_mv_ingreso_serie" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Número de Serie</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Producto: <strong id="mv_ingreso_serie_nombre"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Número de Serie <span class="text-danger">*</span></label>
+                        <input type="text" id="mv_input_numero_serie" class="form-control"
+                               placeholder="Ej: SN-00123" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Número de Motor</label>
+                        <input type="text" id="mv_input_numero_motor" class="form-control"
+                               placeholder="Opcional" autocomplete="off">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">Color</label>
+                            <input type="text" id="mv_input_color" class="form-control"
+                                   placeholder="Opcional" autocomplete="off">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">Año de Fabricación</label>
+                            <input type="number" id="mv_input_anio_fabricacion" class="form-control"
+                                   placeholder="Ej: 2024" min="1900" max="2100">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="mv_confirmar_ingreso_serie()">
+                        <i class="fa fa-check"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-content">
         <div id="vista_para_opciones_{{$opciones[0]->id_opciones}}" class="tab-pane fade show active " role="tabpanel" aria-labelledby="opciones_{{$opciones[0]->id_opciones}}" tabindex="0">
             <div class="col-lg-12 col-md-12 col-sm-12 mb-4">

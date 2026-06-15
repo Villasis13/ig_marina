@@ -22,6 +22,8 @@ class Productos extends Model
             $result = DB::table('productos as p')
                 ->join('tipo_afectacion as ta','ta.id_tipo_afectacion','=','p.id_tipo_afectacion')
                 ->where('p.pro_estado','=',1)
+                ->addSelect(DB::raw('p.*'), DB::raw('ta.*'),
+                    DB::raw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") as stock_series'))
                 ->get();
             //$result = DB::table('productos')->where('id_pro',1)->first();
         }catch (\Exception $e){

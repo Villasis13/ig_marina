@@ -280,6 +280,14 @@ class GestionventasController extends Controller
                                         'productos_log_referencia_id' => $ul_creacion->id_movimientos_productos,
                                     ]);
                                     $reducir = DB::table('productos')->where('id_pro', '=', $d->id_producto)->update(['pro_stock' => $validar_stock->pro_stock - $d->cantidad]);
+                                    // Marcar serie como vendida en movimiento de salida y sincronizar pro_stock
+                                    if (!empty($d->id_serie_producto) && !empty($d->control_serie)) {
+                                        \App\Models\Series::where('id_serie', $d->id_serie_producto)
+                                            ->where('estado', 'disponible')
+                                            ->update(['estado' => 'vendido']);
+                                        DB::table('productos')->where('id_pro', $d->id_producto)
+                                            ->update(['pro_stock' => \App\Models\Series::stockDisponible($d->id_producto)]);
+                                    }
                                 }
                             }
                         }
@@ -327,6 +335,19 @@ class GestionventasController extends Controller
                                     $result = 1;
                                 }else{
                                     $result = 2;
+                                }
+                                // Registrar nueva serie en ingreso y sincronizar pro_stock
+                                if (!empty($d->numero_serie) && !empty($d->control_serie)) {
+                                    \App\Models\Series::create([
+                                        'id_pro'           => $d->id_producto,
+                                        'numero_serie'     => $d->numero_serie,
+                                        'numero_motor'     => $d->numero_motor     ?? null,
+                                        'color'            => $d->color            ?? null,
+                                        'anio_fabricacion' => $d->anio_fabricacion ?? null,
+                                        'estado'           => 'disponible',
+                                    ]);
+                                    DB::table('productos')->where('id_pro', $d->id_producto)
+                                        ->update(['pro_stock' => \App\Models\Series::stockDisponible($d->id_producto)]);
                                 }
                             }else{
                                 $result = 2;
@@ -550,7 +571,7 @@ class GestionventasController extends Controller
         try {
             $series = Series::where('id_pro', $request->id_pro)
                 ->where('estado', 'disponible')
-                ->get(['id_serie_producto', 'numero_serie', 'numero_motor', 'color', 'anio_fabricacion']);
+                ->get(['id_serie as id_serie_producto', 'numero_serie', 'numero_motor', 'color', 'anio_fabricacion']);
             return response()->json(['result' => ['code' => 1, 'data' => $series]]);
         } catch (\Exception $e) {
             $this->logs->insertarLog($e);
@@ -775,9 +796,11 @@ class GestionventasController extends Controller
                                                 ];
                                                 // Marcar serie como vendida si el producto usa control de serie
                                                 if (!empty($d['id_serie_producto'])) {
-                                                    Series::where('id_serie_producto', $d['id_serie_producto'])
+                                                    Series::where('id_serie', $d['id_serie_producto'])
                                                         ->where('estado', 'disponible')
                                                         ->update(['estado' => 'vendido', 'id_venta' => $ultima_venta->id_venta]);
+                                                    DB::table('productos')->where('id_pro', $d['id_pro'])
+                                                        ->update(['pro_stock' => Series::stockDisponible($d['id_pro'])]);
                                                 }
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);
@@ -961,9 +984,11 @@ class GestionventasController extends Controller
                                                 ];
                                                 // Marcar serie como vendida si el producto usa control de serie
                                                 if (!empty($d['id_serie_producto'])) {
-                                                    Series::where('id_serie_producto', $d['id_serie_producto'])
+                                                    Series::where('id_serie', $d['id_serie_producto'])
                                                         ->where('estado', 'disponible')
                                                         ->update(['estado' => 'vendido', 'id_venta' => $ultima_venta->id_venta]);
+                                                    DB::table('productos')->where('id_pro', $d['id_pro'])
+                                                        ->update(['pro_stock' => Series::stockDisponible($d['id_pro'])]);
                                                 }
                                             }
                                             $guardar_venta_detalle = DB::table('ventas_detalle')->insert($detalles);

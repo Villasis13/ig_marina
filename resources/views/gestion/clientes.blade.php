@@ -114,7 +114,7 @@
             <div class="card">
                 <div class="row m-2">
                     <div class="col-lg-2 col-md-12 col-sm-12 d-flex align-items-center">
-                        <button class="btn  btn-sm btn-success" id="btnCliente" data-bs-toggle="modal" data-bs-target="#modalCrearClientes"><i class="fa fa-plus"></i> Agregar Familia</button>
+                        <button class="btn  btn-sm btn-success" id="btnCliente" data-bs-toggle="modal" data-bs-target="#modalCrearClientes"><i class="fa fa-plus"></i> Agregar Contribuyente</button>
                     </div>
                 </div>
             </div>

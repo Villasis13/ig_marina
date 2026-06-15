@@ -227,9 +227,9 @@
                     <div class="col-lg-2 col-md-12 col-sm-12 d-flex align-items-center">
                         <button class="btn  btn-sm btn-success" id="btn_crear_productos" data-bs-toggle="modal" data-bs-target="#modal_crear_productos"><i class="fa fa-plus"></i> Agregar Productos</button>
                     </div>
-                    <div class="col-lg-3 col-md-12 col-sm-12 d-flex align-items-center">
+                    {{--<div class="col-lg-3 col-md-12 col-sm-12 d-flex align-items-center">
                         <button class="btn btn-sm btn-warning text-white" data-bs-toggle="modal" data-bs-target="#modal_importar_excel"><i class="fa-solid fa-file-excel"></i> Importar Excel</button>
-                    </div>
+                    </div>--}}
                 </div>
             </div>
         </div>
@@ -266,10 +266,18 @@
                                                 CÓDIGO: <b>{{$me->pro_codigo}}</b>
                                                 <br>
                                                 @if($me->control_serie)
-                                                    <span class="badge bg-primary">Serie</span>
+                                                    <span class="badge bg-primary" role="button"
+                                                          style="cursor:pointer"
+                                                          onclick="verSeries({{$me->id_pro}},'{{addslashes($me->pro_nombre)}}')">
+                                                        <i class="fa fa-list-ul me-1"></i>Serie
+                                                    </span>
                                                 @endif
                                                 @if($me->control_lote)
-                                                    <span class="badge bg-warning text-dark">Lote</span>
+                                                    <span class="badge bg-warning text-dark" role="button"
+                                                          style="cursor:pointer"
+                                                          onclick="verLotes({{$me->id_pro}},'{{addslashes($me->pro_nombre)}}')">
+                                                        <i class="fa fa-boxes-stacked me-1"></i>Lote
+                                                    </span>
                                                 @endif
                                                 @if(!$me->control_serie && !$me->control_lote)
                                                     <span class="badge bg-secondary">Unidad</span>
@@ -297,7 +305,13 @@
                                             </td>
 {{--                                            <td>{{$me->pro_porcen_igv}}</td>--}}
                                             <td>
-                                                {{$me->id_medida == 58 ? $me->pro_stock : '∞'}}
+                                                @if($me->control_serie)
+                                                    {{ $me->stock_series }}
+                                                @elseif($me->id_medida == 58)
+                                                    {{ $me->pro_stock }}
+                                                @else
+                                                    ∞
+                                                @endif
                                             </td>
                                             <td>
                                                 @if(file_exists($me->pro_foto))
@@ -325,7 +339,142 @@
     </div>
 </div>
 
+{{-- Modal Series --}}
+<div class="modal fade" id="modal_ver_series" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Series — <span id="ms_nombre_producto" class="text-primary"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Nº Serie</th>
+                                <th>Nº Motor</th>
+                                <th>Color</th>
+                                <th>Año Fab.</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ms_tbody">
+                            <tr><td colspan="6" class="text-center text-muted">Cargando…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="ms_sin_datos" class="text-center text-muted d-none">No hay series registradas para este producto.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Lotes --}}
+<div class="modal fade" id="modal_ver_lotes" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lotes — <span id="ml_nombre_producto" class="text-warning"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Nº Lote</th>
+                                <th>Vencimiento</th>
+                                <th>Cantidad</th>
+                                <th>Estado</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ml_tbody">
+                            <tr><td colspan="6" class="text-center text-muted">Cargando…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="ml_sin_datos" class="text-center text-muted d-none">No hay lotes registrados para este producto.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="{{asset('js/domain.js')}}"></script>
 <script src="{{asset('js/logistica.js')}}"></script>
+<script>
+const _csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+function verSeries(id_pro, nombre) {
+    document.getElementById('ms_nombre_producto').textContent = nombre;
+    document.getElementById('ms_sin_datos').classList.add('d-none');
+    document.getElementById('ms_tbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted">Cargando…</td></tr>';
+    const modal = new bootstrap.Modal(document.getElementById('modal_ver_series'));
+    modal.show();
+    fetch(ruta_global + 'logistica/series_por_producto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken },
+        body: JSON.stringify({ id_pro })
+    })
+    .then(r => r.json())
+    .then(r => {
+        const rows = r.data || [];
+        if (!rows.length) {
+            document.getElementById('ms_tbody').innerHTML = '';
+            document.getElementById('ms_sin_datos').classList.remove('d-none');
+            return;
+        }
+        const estadoBadge = e => e === 'disponible'
+            ? '<span class="badge bg-success">Disponible</span>'
+            : '<span class="badge bg-secondary">Vendido</span>';
+        document.getElementById('ms_tbody').innerHTML = rows.map((s, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><strong>${s.numero_serie}</strong></td>
+                <td>${s.numero_motor || '---'}</td>
+                <td>${s.color || '---'}</td>
+                <td>${s.anio_fabricacion || '---'}</td>
+                <td>${estadoBadge(s.estado)}</td>
+            </tr>`).join('');
+    });
+}
+
+function verLotes(id_pro, nombre) {
+    document.getElementById('ml_nombre_producto').textContent = nombre;
+    document.getElementById('ml_sin_datos').classList.add('d-none');
+    document.getElementById('ml_tbody').innerHTML = '<tr><td colspan="6" class="text-center text-muted">Cargando…</td></tr>';
+    const modal = new bootstrap.Modal(document.getElementById('modal_ver_lotes'));
+    modal.show();
+    fetch(ruta_global + 'logistica/lotes_por_producto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken },
+        body: JSON.stringify({ id_pro })
+    })
+    .then(r => r.json())
+    .then(r => {
+        const rows = r.data || [];
+        if (!rows.length) {
+            document.getElementById('ml_tbody').innerHTML = '';
+            document.getElementById('ml_sin_datos').classList.remove('d-none');
+            return;
+        }
+        const estadoBadge = e => e === 'disponible'
+            ? '<span class="badge bg-success">Disponible</span>'
+            : '<span class="badge bg-secondary">Agotado</span>';
+        document.getElementById('ml_tbody').innerHTML = rows.map((l, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><strong>${l.numero_lote}</strong></td>
+                <td>${l.fecha_vencimiento || '---'}</td>
+                <td>${l.cantidad}</td>
+                <td>${estadoBadge(l.estado)}</td>
+                <td>${l.observaciones || '---'}</td>
+            </tr>`).join('');
+    });
+}
+</script>
 
 @endsection

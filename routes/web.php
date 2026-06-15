@@ -145,6 +145,8 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
 
     route::post('/listar_datos_productos',[LogisticaController::class ,'listar_datos_productos'])->name('logistica.listar_datos_productos')->middleware('can:listar_datos_productos');
     route::post('/buscador_productos',[LogisticaController::class ,'buscador_productos'])->name('logistica.buscador_productos')->middleware('can:buscador_productos');
+    route::post('/series_por_producto',[LogisticaController::class ,'series_por_producto'])->name('logistica.series_por_producto');
+    route::post('/lotes_por_producto',[LogisticaController::class ,'lotes_por_producto'])->name('logistica.lotes_por_producto');
     route::post('/historial_orden_compra',[LogisticaController::class ,'historial_orden_compra'])->name('logistica.historial_orden_compra')->middleware('can:historial_orden_compra');
     route::get('/orden_compra_historial_excel/{proveedor}/{inicio}/{final}',[LogisticaController::class ,'orden_compra_historial_excel'])->name('logistica.orden_compra_historial_excel')->middleware('can:orden_compra_historial_excel');
 

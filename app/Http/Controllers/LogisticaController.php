@@ -1835,7 +1835,7 @@ class LogisticaController extends Controller
                 $productos = DB::table('ventas_detalle as vd')
                     ->leftJoin('productos as p', 'p.id_pro', '=', 'vd.id_pro')
                     ->where('vd.id_venta', $v->id_venta)
-                    ->select('vd.id_pro', 'p.pro_codigo', 'p.pro_nombre', 'vd.venta_detalle_nombre_producto')
+                    ->select('vd.id_pro', 'p.pro_codigo', 'p.pro_nombre', 'vd.venta_detalle_nombre_producto', 'vd.venta_detalle_cantidad')
                     ->get();
 
                 return [
@@ -1848,9 +1848,10 @@ class LogisticaController extends Controller
                     'cliente_numero'    => $v->cliente_numero,
                     'id_tipo_documento' => $v->id_tipo_documento,
                     'productos'         => $productos->map(fn($p) => [
-                        'id_pro' => $p->id_pro ?? null,
-                        'codigo' => $p->pro_codigo ?? '',
-                        'nombre' => $p->pro_nombre ?: $p->venta_detalle_nombre_producto,
+                        'id_pro'    => $p->id_pro ?? null,
+                        'codigo'    => $p->pro_codigo ?? '',
+                        'nombre'    => $p->pro_nombre ?: $p->venta_detalle_nombre_producto,
+                        'cantidad'  => $p->venta_detalle_cantidad ?? 1,
                     ])->toArray(),
                 ];
             });
@@ -2437,6 +2438,32 @@ class LogisticaController extends Controller
         } catch (\Exception $e) {
             $this->logs->insertarLog($e);
             return response('Error al generar PDF: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function series_por_producto(Request $request)
+    {
+        try {
+            $series = \App\Models\Series::where('id_pro', $request->id_pro)
+                ->orderByRaw("FIELD(estado,'disponible','vendido') ASC")
+                ->get(['id_serie', 'numero_serie', 'numero_motor', 'color', 'anio_fabricacion', 'estado']);
+            return response()->json(['code' => 1, 'data' => $series]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['code' => 0, 'data' => []]);
+        }
+    }
+
+    public function lotes_por_producto(Request $request)
+    {
+        try {
+            $lotes = \App\Models\Lotes::where('id_pro', $request->id_pro)
+                ->orderByRaw("FIELD(estado,'disponible','agotado') ASC")
+                ->get(['id_lote', 'numero_lote', 'fecha_vencimiento', 'cantidad', 'estado', 'observaciones']);
+            return response()->json(['code' => 1, 'data' => $lotes]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['code' => 0, 'data' => []]);
         }
     }
 
