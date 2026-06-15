@@ -198,7 +198,7 @@
                                                                 <option value="5">Guía</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                    <div id="div_tipo_pago" class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
                                                         <label for="id_tipo_pago" class="form-label">Tipo de Pago</label>
                                                         <select name="id_tipo_pago" id="id_tipo_pago" class="form-control w-50 m-1">
                                                             <option value="">Seleccionar</option>
@@ -232,7 +232,7 @@
                                                         <label for="fecha_emision" class="form-label">Fecha de Emision</label>
                                                         <input type="date" id="fecha_emision" name="fecha_emision" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                    <div id="div_fecha_vencimiento" class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between" style="display:none!important">
                                                         <label for="fecha_vencimiento" class="form-label">Fecha Vencimiento</label>
                                                         <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
                                                     </div>
@@ -353,4 +353,19 @@
 </div>
 <script src="{{asset('js/domain.js')}}"></script>
 <script src="{{asset('js/logistica.js')}}"></script>
+<script>
+    function toggleCondicionCompra(val) {
+        if (val === '1') { // Crédito
+            $('#div_tipo_pago').hide();
+            $('#div_fecha_vencimiento').show();
+        } else { // Contado
+            $('#div_tipo_pago').show();
+            $('#div_fecha_vencimiento').hide();
+        }
+    }
+    $('#orden_compra_condicion').on('change', function() {
+        toggleCondicionCompra($(this).val());
+    });
+    toggleCondicionCompra($('#orden_compra_condicion').val());
+</script>
 @endsection

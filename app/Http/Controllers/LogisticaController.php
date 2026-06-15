@@ -604,7 +604,7 @@ class LogisticaController extends Controller
                         'id_aprobacion'=>Auth::id(),
                         'id_proveedores'=>$request->id_proveedores,
                         'id_sede'=>1,
-                        'id_tipo_pago'=>$request->id_tipo_pago,
+                        'id_tipo_pago'=>$request->id_tipo_pago ?: null,
 //                        'id_almacen'=>$request->id_almacen,
                         'orden_compra_fecha_aprob'=>$fecha,
                         'orden_compra_activo'=>0,
@@ -837,7 +837,7 @@ class LogisticaController extends Controller
             $message = "";
             $datos =  DB::table('orden_compra as oc')
                 ->join('proveedores as p','p.id_proveedores','=','oc.id_proveedores')
-                ->join('tipo_pago as tp','tp.id_tipo_pago','=','oc.id_tipo_pago')
+                ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','oc.id_tipo_pago')
                 ->where('oc.orden_compra_estado','=',1);
                 if ($request->id_prove){
                     $datos->where('p.id_proveedores','=',$request->id_prove);
@@ -862,7 +862,7 @@ class LogisticaController extends Controller
         try {
 
             $query = DB::table('orden_compra as od')
-                ->join('tipo_pago as tp','tp.id_tipo_pago','=','od.id_tipo_pago')
+                ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','od.id_tipo_pago')
                 ->join('proveedores as pv','pv.id_proveedores','=','od.id_proveedores')
 //                ->join('almacen as a','a.id_almacen','=','od.id_almacen')
                 ->where('od.orden_compra_estado','=',1);

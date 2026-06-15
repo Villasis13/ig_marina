@@ -19,7 +19,7 @@ class Orden_compra extends Model
         $datos = DB::table('orden_compra as oc')
             ->join('proveedores as p','oc.id_proveedores','=','p.id_proveedores')
             ->join('users as u','oc.id_solicitante','=','u.id_users')
-            ->join('tipo_pago as tp','tp.id_tipo_pago','=','oc.id_tipo_pago')
+            ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','oc.id_tipo_pago')
             ->where('oc.id_orden_compra','=',  $id)
             ->where('oc.orden_compra_estado','=',  1)
             ->first();
@@ -43,7 +43,7 @@ class Orden_compra extends Model
             ->join('proveedores as p2', 'orden_compra.id_proveedores', '=', 'p2.id_proveedores')
             ->join('recursos as rs', 'dc.id_recursos', '=', 'rs.id_recursos')
             ->join('recursos as r', 'rs.id_recursos', '=', 'r.id_recursos')
-            ->join('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
+            ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
 //            ->join('sucursal as s', 'rs.id_sucursal', '=', 's.id_sucursal')
             ->where('orden_compra_estado', 1)
             ->where('detalle_compra_estado', 1)
@@ -64,7 +64,7 @@ class Orden_compra extends Model
             ->join('users as u', 'orden_compra.id_solicitante', '=', 'u.id_users')
             ->join('persona as p', 'u.id_persona', '=', 'p.id_persona')
             ->join('proveedores as p2', 'orden_compra.id_proveedores', '=', 'p2.id_proveedores')
-            ->join('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
+            ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
 
             ->where('orden_compra_estado', 1)
             ->whereBetween(DB::raw('date(orden_compra_fecha)'), [$fecha_hoy, $fecha_fin])
@@ -81,7 +81,7 @@ class Orden_compra extends Model
             ->join('proveedores as p2', 'orden_compra.id_proveedores', '=', 'p2.id_proveedores')
             ->join('recursos as rs', 'dc.id_recursos', '=', 'rs.id_recursos')
             ->join('recursos as r', 'rs.id_recursos', '=', 'r.id_recursos')
-            ->join('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
+            ->leftJoin('tipo_pago as tp','tp.id_tipo_pago','=','orden_compra.id_tipo_pago')
 
             ->where('orden_compra_estado', 1)
             ->where('detalle_compra_estado', 1)

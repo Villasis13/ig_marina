@@ -514,13 +514,16 @@ $("#formulario_orden_compra").on('submit', function(e){
     var id_tipo_venta  = $('#id_tipo_venta').val();
     var fecha_emision  = $('#fecha_emision').val();
     var id_tipo_pago  = $('#id_tipo_pago').val();
+    var orden_compra_condicion = $('#orden_compra_condicion').val();
     // var id_almacen  = $('id_almacen').val();
     var num_documento_  = $('#num_documento_').val();
     var total  = $('#total').val();
     valor = validar_campo_vacio('id_proveedores', id_proveedores, valor);
     valor = validar_campo_vacio('id_tipo_venta', id_tipo_venta, valor);
     valor = validar_campo_vacio('fecha_emision', fecha_emision, valor);
-    valor = validar_campo_vacio('id_tipo_pago', id_tipo_pago, valor);
+    if (orden_compra_condicion === '0') {
+        valor = validar_campo_vacio('id_tipo_pago', id_tipo_pago, valor);
+    }
     // valor = validar_campo_vacio('id_almacen', id_almacen, valor);
     valor = validar_campo_vacio('num_documento_', num_documento_, valor);
     valor = validar_campo_vacio('total', total, valor);
@@ -655,7 +658,7 @@ function buscar_historial_orden_compras(){
                             <td>${el.orden_compra_numero}</td>
                             <td>
                                 S/${el.total}
-                               <b class="text-success">${el.tipo_pago_nombre}</b>
+                               <b class="text-success">${el.tipo_pago_nombre || 'Crédito'}</b>
                             </td>
                             <td>
                                 <a href="${ruta_global+'logistica/ordenCompraDetalle/'+'?ordenCompra='+encodeURIComponent(el.id_orden_compra)}"   class="btn btn-sm btn-primary text-white m-1 " ><i class="fa fa-eye menu_editar"></i></a>
