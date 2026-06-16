@@ -156,15 +156,6 @@
 
 <div class="tab-content">
     <div id="vista_para_opciones_{{$opciones[0]->id_opciones}}" class="tab-pane fade show active " role="tabpanel" aria-labelledby="opciones_{{$opciones[0]->id_opciones}}" tabindex="0">
-        <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
-            <div class="card">
-                <div class="row m-2">
-                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex justify-content-center align-items-center">
-                        <b class="text-primary">Iniciar solicitud de orden de compra</b>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="col-lg-12 col-md-12 col-sm-12 mb-3">
             <form id="formulario_orden_compra" class="mb-3" method="POST" enctype="multipart/form-data">
                 @csrf
@@ -184,6 +175,13 @@
                                                             @foreach($proveedores as $t)
                                                                 <option value="{{$t->id_proveedores}}">{{$t->proveedores_nombre}}</option>
                                                             @endforeach
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                        <label class="form-label">Condición</label>
+                                                        <select name="orden_compra_condicion" id="orden_compra_condicion" class="form-control w-50 m-1">
+                                                            <option value="0">Contado</option>
+                                                            <option value="1">Crédito</option>
                                                         </select>
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
@@ -207,34 +205,27 @@
                                                             @endforeach
                                                         </select>
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
-                                                        <label class="form-label">Condición</label>
-                                                        <select name="orden_compra_condicion" id="orden_compra_condicion" class="form-control w-50 m-1">
-                                                            <option value="0">Contado</option>
-                                                            <option value="1">Crédito</option>
-                                                        </select>
-                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="col-lg-4 col-md-12 col-sm-12">
                                                 <div class="row">
-
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
                                                         <label for="num_documento" class="form-label">Nro. de documento</label>
                                                         <input type="text" id="num_documento_" onkeyup="mayuscula(this.id)" name="num_documento_" class="form-control w-50 m-1">
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
                                                         <label for="total" class="form-label">Total</label>
-                                                        <input type="text" readonly="" id="total" name="total" class="form-control w-50 m-1">
+                                                        <input type="text" readonly="" id="total" class="form-control w-50 m-1">
+                                                        <input type="hidden" id="total_raw" name="total">
                                                         <input type="hidden" value="1" id="estadoActionFuctionOrdenCompra" name="estadoActionFuctionOrdenCompra" class="form-control w-50 m-1">
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
-                                                        <label for="fecha_emision" class="form-label">Fecha de Emision</label>
-                                                        <input type="date" id="fecha_emision" name="fecha_emision" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
+                                                        <label for="fecha_emision" class="form-label">Fecha de Emisión</label>
+                                                        <input type="date" id="fecha_emision" name="fecha_emision" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}" onchange="actualizarFechaVencimiento()">
                                                     </div>
-                                                    <div id="div_fecha_vencimiento" class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between" style="display:none!important">
+                                                    <div id="div_fecha_vencimiento" class="col-lg-12 col-md-12 col-sm-12 align-items-center justify-content-between" style="display:none">
                                                         <label for="fecha_vencimiento" class="form-label">Fecha Vencimiento</label>
-                                                        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1" value="{{ date('Y-m-d') }}">
+                                                        <input type="date" id="fecha_vencimiento" name="fecha_vencimiento" class="form-control w-50 m-1" value="{{ date('Y-m-d', strtotime('+1 month')) }}">
                                                     </div>
                                                 </div>
                                             </div>
@@ -244,13 +235,13 @@
                                                         <label for="observaciones_orden_compra">Observaciones</label>
                                                         <textarea name="observaciones_orden_compra" id="observaciones_orden_compra" cols="30" rows="2" class="form-control w-100 m-1"></textarea>
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                    <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <label for="guia_remision" class="form-label">Guía de Remisión</label>
-                                                        <input type="text" id="guia_remision" name="guia_remision" class="form-control w-50 m-1" placeholder="Nro. guía">
+                                                        <input type="text" id="guia_remision" name="guia_remision" class="form-control w-100 m-1" placeholder="Nro. guía">
                                                     </div>
-                                                    <div class="col-lg-12 col-md-12 col-sm-12 d-flex align-items-center justify-content-between">
+                                                    <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <label for="guia_transportista" class="form-label">Guía Transportista</label>
-                                                        <input type="text" id="guia_transportista" name="guia_transportista" class="form-control w-50 m-1" placeholder="Transportista">
+                                                        <input type="text" id="guia_transportista" name="guia_transportista" class="form-control w-100 m-1" placeholder="Transportista">
                                                     </div>
                                                     <div class="col-lg-12 col-md-12 col-sm-12">
                                                         <label for="adjuntar_foto">Adjuntar Documentos</label>
@@ -357,10 +348,21 @@
     function toggleCondicionCompra(val) {
         if (val === '1') { // Crédito
             $('#div_tipo_pago').hide();
-            $('#div_fecha_vencimiento').show();
+            $('#div_fecha_vencimiento').css('display', 'flex');
         } else { // Contado
             $('#div_tipo_pago').show();
-            $('#div_fecha_vencimiento').hide();
+            $('#div_fecha_vencimiento').css('display', 'none');
+        }
+    }
+    function actualizarFechaVencimiento() {
+        var emision = $('#fecha_emision').val();
+        if (emision) {
+            var d = new Date(emision);
+            d.setMonth(d.getMonth() + 1);
+            var yyyy = d.getFullYear();
+            var mm   = String(d.getMonth() + 1).padStart(2, '0');
+            var dd   = String(d.getDate()).padStart(2, '0');
+            $('#fecha_vencimiento').val(yyyy + '-' + mm + '-' + dd);
         }
     }
     $('#orden_compra_condicion').on('change', function() {

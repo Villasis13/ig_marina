@@ -403,7 +403,8 @@
           </div>
           <div class="gf">
             <label>N.º Documento <span class="req">*</span></label>
-            <input type="text" name="guia_cliente_num_doc" id="guia_cliente_num_doc" placeholder="RUC / DNI" style="font-family:monospace;" maxlength="15">
+            <input type="text" name="guia_cliente_num_doc" id="guia_cliente_num_doc" placeholder="RUC / DNI" style="font-family:monospace;" maxlength="15"
+                   oninput="autocompletarCliente(this.value)">
           </div>
           <div class="gf">
             <label>Nombre / Razón Social <span class="req">*</span></label>
@@ -515,7 +516,7 @@
           <div class="gg4">
             <div class="gf">
               <label>Tipo Documento <span class="req">*</span></label>
-              <select name="guia_conductor_documento_tipo">
+              <select name="guia_conductor_documento_tipo" id="guia_conductor_documento_tipo">
                 <option value="1" selected>DNI</option>
                 <option value="4">C.E.</option>
                 <option value="7">Pasaporte</option>
@@ -523,15 +524,16 @@
             </div>
             <div class="gf">
               <label>N.º Documento <span class="req">*</span></label>
-              <input type="text" name="guia_conductor_numero" placeholder="DNI del conductor" maxlength="15" style="font-family:monospace;">
+              <input type="text" name="guia_conductor_numero" id="guia_conductor_numero" placeholder="DNI del conductor" maxlength="15" style="font-family:monospace;"
+                     oninput="autocompletarConductor(this.value)">
             </div>
             <div class="gf">
               <label>Nombres</label>
-              <input type="text" name="guia_conductor_nombre" placeholder="Nombres">
+              <input type="text" name="guia_conductor_nombre" id="guia_conductor_nombre" placeholder="Nombres">
             </div>
             <div class="gf">
               <label>Apellidos</label>
-              <input type="text" name="guia_conductor_apellidos" placeholder="Apellidos">
+              <input type="text" name="guia_conductor_apellidos" id="guia_conductor_apellidos" placeholder="Apellidos">
             </div>
             <div class="gf">
               <label>Licencia de Conducir <span class="req">*</span></label>
@@ -694,7 +696,10 @@ let itemIdCounter = 0;
 let toastTimeout;
 
 /* ── MODAL ── */
-function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function abrirModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'modalFactura') cargarUltimas5Facturas();
+}
 function cerrarModal(id) {
   document.getElementById(id).classList.remove('open');
   if (id === 'modalFactura') resetFacturaModal();
@@ -739,6 +744,35 @@ function resetFacturaModal() {
   const msg = document.getElementById('factMsg');
   msg.className = 'modal-msg'; msg.textContent = '';
   document.getElementById('factResultados').innerHTML = '';
+}
+
+function cargarUltimas5Facturas() {
+  const res = document.getElementById('factResultados');
+  res.innerHTML = '';
+  fetch('{{ route("logistica.buscar_venta_guia") }}', {
+    method: 'POST',
+    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+    body: 'serie=&correlativo=&last=5'
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.result === 1 && data.data && data.data.length) {
+      let html = '<p style="font-size:11.5px;color:var(--text-3);margin-top:10px;margin-bottom:4px;">Últimas facturas — selecciona o busca arriba por serie/correlativo</p>';
+      html += '<table class="results-tbl"><thead><tr><th>Factura</th><th>Cliente</th><th>Productos</th><th></th></tr></thead><tbody>';
+      data.data.forEach(r => {
+        const prods = r.productos.map(p => `<span style="display:block;font-size:11.5px;color:var(--text-2);">${p.codigo ? p.codigo + ' – ' : ''}${p.nombre}</span>`).join('');
+        html += `<tr>
+          <td><strong style="font-family:monospace;color:var(--accent);">${r.serie}-${r.correlativo}</strong><br><span style="font-size:11px;color:var(--text-3);">S/ ${r.total}</span></td>
+          <td><strong style="font-size:12.5px;">${r.cliente_nombre}</strong><br><span style="font-family:monospace;font-size:11px;color:var(--text-3);">${r.cliente_numero}</span></td>
+          <td>${prods || '<span style="color:var(--text-3);font-size:11.5px;">Sin productos</span>'}</td>
+          <td><button class="btn-vincular-row" onclick='vincularFactura(${JSON.stringify(r)})'>Vincular</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      res.innerHTML = html;
+    }
+  })
+  .catch(() => {});
 }
 
 function buscarFactura() {
@@ -869,6 +903,61 @@ function seleccionarCliente(tipoDoc, numDoc, nombre, idClientes) {
   document.getElementById('input_id_clientes').value = idClientes;
   cerrarModal('modalCliente');
   showToast('Cliente seleccionado: ' + nombre, 'success');
+}
+
+function autocompletarCliente(num) {
+  num = num.trim();
+  if (num.length !== 8 && num.length !== 11) return;
+  // 1. Buscar en BD
+  const clientes = @json($clientes);
+  const found = clientes.find(c => (c.cliente_numero || '') === num);
+  if (found) {
+    setAutofill('guia_cliente_tipo_doc', found.id_tipo_documento || '');
+    setAutofill('guia_cliente_nombre', found.cliente_razonsocial || found.cliente_nombre || '');
+    document.getElementById('input_id_clientes').value = found.id_clientes || '';
+    showToast('Cliente encontrado en BD: ' + (found.cliente_razonsocial || found.cliente_nombre), 'success');
+    return;
+  }
+  // 2. Usar API (solo si no se encontró en BD)
+  const tipoInput = document.getElementById('guia_cliente_tipo_doc');
+  const tipoVal   = tipoInput ? tipoInput.value : '';
+  // Si el tipo seleccionado es 4 (RUC) o el número tiene 11 dígitos → RUC
+  const esRuc = tipoVal == '4' || num.length === 11;
+  if (esRuc && num.length === 11) {
+    consultarNumdocumento('guia_cliente_tipo_doc', 'guia_cliente_num_doc', 'guia_cliente_nombre', null, null);
+  } else if (!esRuc && num.length === 8) {
+    consultarNumdocumento('guia_cliente_tipo_doc', 'guia_cliente_num_doc', 'guia_cliente_nombre', null, null);
+  }
+}
+
+function autocompletarConductor(num) {
+  num = num.trim();
+  const tipo = document.getElementById('guia_conductor_documento_tipo')?.value || '1';
+  // Solo para DNI (tipo=1) con 8 dígitos
+  if (tipo != '1' || num.length !== 8 || isNaN(num)) return;
+  var formData = new FormData();
+  formData.append('token', 'uTZu2aTvMPpqWFuzKATPRWNujUUe7Re1scFlRsTy9Q15k1sjdJVAc9WGy57m');
+  formData.append('dni', num);
+  var req = new XMLHttpRequest();
+  req.open('POST', 'https://api.migo.pe/api/v1/dni');
+  req.setRequestHeader('Accept', 'application/json');
+  req.send(formData);
+  req.onload = function () {
+    try {
+      var data = JSON.parse(this.response);
+      if (data.success && data.nombre) {
+        // nombre retornado en formato "APELLIDOS NOMBRES" — separar en apellidos / nombres
+        var partes = data.nombre.trim().split(/\s+/);
+        var apellidos = partes.slice(0, 2).join(' ');
+        var nombres   = partes.slice(2).join(' ');
+        setAutofill('guia_conductor_apellidos', apellidos);
+        setAutofill('guia_conductor_nombre',    nombres);
+        showToast('Conductor: ' + data.nombre, 'success');
+      } else {
+        showToast(data.message || 'DNI no encontrado', 'error');
+      }
+    } catch(e) {}
+  };
 }
 
 /* ── BUSCADOR DE PRODUCTOS ── */

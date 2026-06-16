@@ -139,6 +139,9 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::get('/compras_pdf',[LogisticaController::class ,'compras_pdf'])->name('logistica.compras_pdf')->middleware('can:compras_pdf');
 
     route::post('/guardar_producto',[LogisticaController::class ,'guardar_producto'])->name('logistica.guardar_producto')->middleware('can:guardar_producto');
+    route::post('/toggle_producto',[LogisticaController::class ,'toggle_producto'])->name('logistica.toggle_producto');
+    route::post('/filtrar_productos',[LogisticaController::class ,'filtrar_productos'])->name('logistica.filtrar_productos');
+    route::get('/exportar_productos_excel',[LogisticaController::class ,'exportar_productos_excel'])->name('logistica.exportar_productos_excel');
     route::post('/importar_productos_excel',[LogisticaController::class ,'importar_productos_excel'])->name('logistica.importar_productos_excel');
     route::post('/crear_orden_compra',[LogisticaController::class ,'crear_orden_compra'])->name('logistica.crear_orden_compra')->middleware('can:crear_orden_compra');
     route::post('/eliminar_orden_compra',[LogisticaController::class ,'eliminar_orden_compra'])->name('logistica.eliminar_orden_compra')->middleware('can:eliminar_orden_compra');
@@ -146,6 +149,7 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::post('/listar_datos_productos',[LogisticaController::class ,'listar_datos_productos'])->name('logistica.listar_datos_productos')->middleware('can:listar_datos_productos');
     route::post('/buscador_productos',[LogisticaController::class ,'buscador_productos'])->name('logistica.buscador_productos')->middleware('can:buscador_productos');
     route::post('/series_por_producto',[LogisticaController::class ,'series_por_producto'])->name('logistica.series_por_producto');
+    route::post('/verificar_serie',[LogisticaController::class ,'verificar_serie'])->name('logistica.verificar_serie');
     route::post('/lotes_por_producto',[LogisticaController::class ,'lotes_por_producto'])->name('logistica.lotes_por_producto');
     route::post('/historial_orden_compra',[LogisticaController::class ,'historial_orden_compra'])->name('logistica.historial_orden_compra')->middleware('can:historial_orden_compra');
     route::get('/orden_compra_historial_excel/{proveedor}/{inicio}/{final}',[LogisticaController::class ,'orden_compra_historial_excel'])->name('logistica.orden_compra_historial_excel')->middleware('can:orden_compra_historial_excel');

@@ -74,15 +74,13 @@ class LogisticaController extends Controller
     public function gestionar_productos()
     {
         try {
-//            ESTE IF ES PARA VERIFICAR SI ESE ROL TIENE EL PERMISO PARA LA VISTA
-            $productos = $this->productos->listar_productos();
             $cate = $this->categorias->listar_categoria();
             $opciones = $this->submenu->optiones_por_vista("gestionar_productos");
             $tipoAfectacion = DB::table('tipo_afectacion')->get();
             $proveedores = $this->proveedores->listar_proveedores();
             $familias = DB::table('familias')->where('fa_estado', 1)->get();
             $monedas = DB::table('monedas')->where('activo', 1)->get();
-            return view('logistica/gestionar_productos', compact('opciones','cate','productos','tipoAfectacion','proveedores','familias','monedas'));
+            return view('logistica/gestionar_productos', compact('opciones','cate','tipoAfectacion','proveedores','familias','monedas'));
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             echo "<script>
@@ -161,7 +159,7 @@ class LogisticaController extends Controller
                 $pdf->SetFillColor(220, 220, 220);
                 //CABECERA DEL ARCHIVO
                 if (file_exists($empresa->empresa_foto)) {
-                    $pdf->Image("$empresa->empresa_foto", 27, 5, 45,30);
+                    $pdf->Image("$empresa->empresa_foto", 20, 5, 70,32);
                 }
                 $pdf->Ln(5);
                 $pdf->SetFont('Arial','B',20);
@@ -420,62 +418,59 @@ class LogisticaController extends Controller
             if($request->estadoActionFuctionProductos == 1){
                 $validar = $this->productos->buscar_codigo_repe($request->pro_codigo);
                 if(!$validar){
-                        if($request->hasFile('pro_foto') != null ){
+                    if($request->hasFile('pro_foto')){
                         $fi = $request->file('pro_foto');
                         $lugardestino = 'productos/';
-                        $foto_productos =  $this->general->convertir_webp($fi,$lugardestino);
-
-                        if ($request->tipoAfectacion == 1){
-                            /* GRAVADA*/
-                            $valorunit = (($request->pro_precio_uni / 1.18));
-                            $valormayo = (($request->pro_precio_uni_ma / 1.18));
-                        }else{
-                            /* OTROS*/
-                            $valorunit = $request->pro_precio_uni;
-                            $valormayo = $request->pro_precio_uni_ma;
-                        }
-
-                        $guardar = DB::table('productos')->insert([
-                            'id_ca'=>$request->id_ca,
-                            'id_medida'=>$request->unidadMedida,
-                            'id_tipo_afectacion'=>$request->tipoAfectacion,
-                            'id_moneda'=>$request->input('id_moneda', 1),
-                            'pro_nombre'=>$request->pro_nombre,
-                            'pro_codigo'=>$request->pro_codigo,
-                            'pro_codigo_barra'=>$request->pro_codigo_barra,
-                            'pro_descripcion'=>$request->pro_descripcion,
-                            'pro_presentacion'=>$request->pro_presentacion,
-                            'pro_medida'=>$request->pro_medida,
-                            'pro_precio_valor'=>$valorunit,
-                            'pro_precio_uni'=>$request->pro_precio_uni,
-                            'pro_precio_valor_ma'=>$valormayo,
-                            'pro_precio_uni_ma'=>$request->pro_precio_uni_ma,
-                            'pro_precio_costo'=>$request->input('pro_precio_costo', 0),
-                            'pro_valor_costo'=>$request->input('pro_valor_costo', 0),
-                            'pro_costo_promedio'=>$request->input('pro_precio_costo', 0),
-                            'pro_fecha_adquisicion'=>$request->pro_fecha_adquisicion ?: null,
-                            'pro_porcen_igv'=>$request->tipoAfectacion == 1 ? 1.18 : 0,
-                            'pro_stock'=>0,
-                            'stock_minimo'=>$request->input('stock_minimo', 0),
-                            'stock_maximo'=>$request->input('stock_maximo', 0),
-                            'pro_foto'=>$foto_productos,
-                            'pro_estado'=>1,
-                            'impuesto_bolsa'=>$request->has('impuesto_bolsa') ? 1 : 0,
-                            'control_serie' => $request->has('control_serie') ? 1 : 0,
-                            'control_lote'  => $request->has('control_lote')  ? 1 : 0,
-                        ]);
-                        if ($guardar && $request->filled('ids_proveedores')) {
-                            $nuevo = DB::table('productos')->where('pro_codigo', $request->pro_codigo)->first();
-                            foreach ($request->ids_proveedores as $id_prov) {
-                                DB::table('producto_proveedor')->insertOrIgnore(['id_pro'=>$nuevo->id_pro,'id_proveedores'=>$id_prov]);
-                            }
-                        }
-                        $result = $guardar ? 1 : 2;
-                        $message = "¡Registro guardado exitoso!";
-                    }else{
-                        $result = 3;
-                        $message = "Debe ingresar una imagen para el producto";
+                        $foto_productos = $this->general->convertir_webp($fi, $lugardestino);
+                    } else {
+                        $foto_productos = 'sin-fotografia.png';
                     }
+
+                    if ($request->tipoAfectacion == 1){
+                        $valorunit = $request->pro_precio_uni / 1.18;
+                        $valormayo = $request->pro_precio_uni_ma / 1.18;
+                    }else{
+                        $valorunit = $request->pro_precio_uni;
+                        $valormayo = $request->pro_precio_uni_ma;
+                    }
+
+                    $guardar = DB::table('productos')->insert([
+                        'id_ca'=>$request->id_ca,
+                        'id_medida'=>$request->unidadMedida,
+                        'id_tipo_afectacion'=>$request->tipoAfectacion,
+                        'id_moneda'=>$request->input('id_moneda', 1),
+                        'pro_nombre'=>$request->pro_nombre,
+                        'pro_codigo'=>$request->pro_codigo,
+                        'pro_codigo_barra'=>$request->pro_codigo_barra,
+                        'pro_descripcion'=>$request->pro_descripcion,
+                        'pro_presentacion'=>$request->pro_presentacion,
+                        'pro_medida'=>$request->pro_medida,
+                        'pro_precio_valor'=>$valorunit,
+                        'pro_precio_uni'=>$request->pro_precio_uni,
+                        'pro_precio_valor_ma'=>$valormayo,
+                        'pro_precio_uni_ma'=>$request->pro_precio_uni_ma,
+                        'pro_precio_costo'=>$request->input('pro_precio_costo', 0),
+                        'pro_valor_costo'=>$request->input('pro_valor_costo', 0),
+                        'pro_costo_promedio'=>$request->input('pro_precio_costo', 0),
+                        'pro_fecha_adquisicion'=>$request->pro_fecha_adquisicion ?: null,
+                        'pro_porcen_igv'=>$request->tipoAfectacion == 1 ? 1.18 : 0,
+                        'pro_stock'=>0,
+                        'stock_minimo'=>$request->input('stock_minimo', 0),
+                        'stock_maximo'=>$request->input('stock_maximo', 0),
+                        'pro_foto'=>$foto_productos,
+                        'pro_estado'=>1,
+                        'impuesto_bolsa'=>$request->has('impuesto_bolsa') ? 1 : 0,
+                        'control_serie' => $request->has('control_serie') ? 1 : 0,
+                        'control_lote'  => $request->has('control_lote')  ? 1 : 0,
+                    ]);
+                    if ($guardar && $request->filled('ids_proveedores')) {
+                        $nuevo = DB::table('productos')->where('pro_codigo', $request->pro_codigo)->first();
+                        foreach ($request->ids_proveedores as $id_prov) {
+                            DB::table('producto_proveedor')->insertOrIgnore(['id_pro'=>$nuevo->id_pro,'id_proveedores'=>$id_prov]);
+                        }
+                    }
+                    $result = $guardar ? 1 : 2;
+                    $message = "¡Registro guardado exitoso!";
                 }else{
                     $result = 3;
                     $message = "Ya hay un productos registrado con el código proporcionado.";
@@ -562,6 +557,156 @@ class LogisticaController extends Controller
         }
         return json_encode(array("result" => array("code" => $result,'message'=>$message)));
     }
+
+    public function toggle_producto(Request $request)
+    {
+        try {
+            $producto = DB::table('productos')->where('id_pro', $request->id_pro)->first();
+            if (!$producto) return response()->json(['result'=>['code'=>2,'message'=>'Producto no encontrado']]);
+            $nuevoEstado = $producto->pro_estado == 1 ? 0 : 1;
+            DB::table('productos')->where('id_pro', $request->id_pro)->update(['pro_estado' => $nuevoEstado]);
+            $message = $nuevoEstado == 1 ? '¡Producto habilitado correctamente!' : '¡Producto deshabilitado correctamente!';
+            return response()->json(['result'=>['code'=>1,'message'=>$message,'nuevo_estado'=>$nuevoEstado]]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['result'=>['code'=>2,'message'=>'Error al cambiar estado']]);
+        }
+    }
+
+    public function filtrar_productos(Request $request)
+    {
+        try {
+            $estado  = $request->input('estado', 1);    // 1=habilitado, 0=deshabilitado
+            $stock   = $request->input('stock', '');    // 'con', 'sin', ''
+            $nombre  = $request->input('nombre', '');
+
+            $query = DB::table('productos as p')
+                ->join('tipo_afectacion as ta', 'ta.id_tipo_afectacion', '=', 'p.id_tipo_afectacion')
+                ->leftJoin('familias as f', 'f.id_fa', '=', 'p.id_fa')
+                ->leftJoin('categorias as ca', 'ca.id_ca', '=', 'p.id_ca')
+                ->addSelect(DB::raw('p.*'), DB::raw('ta.*'), DB::raw('f.fa_nombre'), DB::raw('ca.ca_nombre'),
+                    DB::raw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") as stock_series'))
+                ->where('p.pro_estado', $estado);
+
+            if ($nombre !== '') {
+                $query->where(function($q) use ($nombre) {
+                    $q->where('p.pro_nombre', 'like', '%'.$nombre.'%')
+                      ->orWhere('p.pro_codigo', 'like', '%'.$nombre.'%');
+                });
+            }
+
+            if ($stock === 'con') {
+                $query->where(function($q) {
+                    $q->whereRaw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") > 0')
+                      ->orWhere(function($q2) {
+                          $q2->where('p.control_serie', 0)->where('p.pro_stock', '>', 0);
+                      });
+                });
+            } elseif ($stock === 'sin') {
+                $query->where(function($q) {
+                    $q->whereRaw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") = 0')
+                      ->where(function($q2) {
+                          $q2->where('p.control_serie', 1)
+                             ->orWhere('p.pro_stock', '<=', 0);
+                      });
+                });
+            }
+
+            $productos = $query->orderBy('p.pro_nombre')->get();
+            return response()->json(['result'=>['code'=>1,'data'=>$productos]]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['result'=>['code'=>2,'data'=>[]]]);
+        }
+    }
+
+    public function exportar_productos_excel(Request $request)
+    {
+        try {
+            $estado = $request->input('estado', 1);
+            $stock  = $request->input('stock', '');
+            $nombre = $request->input('nombre', '');
+
+            $query = DB::table('productos as p')
+                ->join('tipo_afectacion as ta', 'ta.id_tipo_afectacion', '=', 'p.id_tipo_afectacion')
+                ->leftJoin('familias as f', 'f.id_fa', '=', 'p.id_fa')
+                ->leftJoin('categorias as ca', 'ca.id_ca', '=', 'p.id_ca')
+                ->addSelect(DB::raw('p.*'), DB::raw('f.fa_nombre'), DB::raw('ca.ca_nombre'),
+                    DB::raw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") as stock_series'))
+                ->where('p.pro_estado', $estado);
+
+            if ($nombre !== '') {
+                $query->where(function($q) use ($nombre) {
+                    $q->where('p.pro_nombre', 'like', '%'.$nombre.'%')
+                      ->orWhere('p.pro_codigo', 'like', '%'.$nombre.'%');
+                });
+            }
+            if ($stock === 'con') {
+                $query->where(function($q) {
+                    $q->whereRaw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") > 0')
+                      ->orWhere(function($q2){ $q2->where('p.control_serie',0)->where('p.pro_stock','>',0); });
+                });
+            } elseif ($stock === 'sin') {
+                $query->where(function($q) {
+                    $q->whereRaw('(SELECT COUNT(*) FROM series WHERE series.id_pro = p.id_pro AND series.estado = "disponible") = 0')
+                      ->where(function($q2){ $q2->where('p.control_serie',1)->orWhere('p.pro_stock','<=',0); });
+                });
+            }
+            $productos = $query->orderBy('p.pro_nombre')->get();
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Productos');
+
+            $headers = ['#','Código','Nombre','Línea','Categoría','Unidad Medida','Precio Unit.','Precio Mayorista','Costo','Stock','Bolsa','Estado'];
+            foreach ($headers as $i => $h) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+                $sheet->setCellValue($col.'1', $h);
+                $sheet->getStyle($col.'1')->getFont()->setBold(true);
+                $sheet->getStyle($col.'1')->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FF1E3A8A');
+                $sheet->getStyle($col.'1')->getFont()->getColor()->setARGB('FFFFFFFF');
+            }
+
+            foreach ($productos as $k => $p) {
+                $row = $k + 2;
+                $stock_show = $p->control_serie ? $p->stock_series : $p->pro_stock;
+                $sheet->setCellValue('A'.$row, $k+1);
+                $sheet->setCellValue('B'.$row, $p->pro_codigo);
+                $sheet->setCellValue('C'.$row, $p->pro_nombre);
+                $sheet->setCellValue('D'.$row, $p->fa_nombre ?? '');
+                $sheet->setCellValue('E'.$row, $p->ca_nombre ?? '');
+                $sheet->setCellValue('F'.$row, $p->id_medida == 58 ? 'UNIDAD (BIENES)' : 'UNIDAD (SERVICIOS)');
+                $sheet->setCellValue('G'.$row, $p->pro_precio_uni);
+                $sheet->setCellValue('H'.$row, $p->pro_precio_uni_ma);
+                $sheet->setCellValue('I'.$row, $p->pro_precio_costo);
+                $sheet->setCellValue('J'.$row, $stock_show);
+                $sheet->setCellValue('K'.$row, $p->impuesto_bolsa ? 'Sí' : 'No');
+                $sheet->setCellValue('L'.$row, $p->pro_estado ? 'Habilitado' : 'Deshabilitado');
+                if (!$p->pro_estado) {
+                    $sheet->getStyle('A'.$row.':L'.$row)->getFill()
+                        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB('FFFEE2E2');
+                }
+            }
+            foreach (range('A','L') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'productos_'.date('Ymd_His').'.xlsx';
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="'.$filename.'"');
+            header('Cache-Control: max-age=0');
+            $writer->save('php://output');
+            exit;
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            abort(500);
+        }
+    }
+
     public function crear_orden_compra(Request $request)
     {
         try {
@@ -721,6 +866,7 @@ class LogisticaController extends Controller
                                 'productos_log_costo_unitario'=> $costo_unitario_entrada,
                                 'productos_log_documento'     => ($id_orden_compra->orden_compra_tipo_doc ?? 'OC') . '-' . ($id_orden_compra->orden_compra_numero_doc ?? ''),
                                 'productos_log_referencia_id' => $id_orden_compra->id_orden_compra,
+                                'productos_log_estado'        => 1,
                             ]);
                         }
                         $result = $detalle ? 1 : 2;
@@ -758,13 +904,23 @@ class LogisticaController extends Controller
                 if ($ordenCompra->save()){
                     $result = 1;
 
+                    // Marcar detalles como inactivos
+                    DB::table('orden_compra_detalle')
+                        ->where('id_orden_compra', $idOrdenCompra)
+                        ->update(['detalle_compra_estado' => 0]);
+
+                    // Desactivar entradas del Kardex de esta compra (soft delete)
+                    DB::table('productos_log')
+                        ->where('id_tipo_movimiento_producto', 1)
+                        ->where('productos_log_referencia_id', $idOrdenCompra)
+                        ->update(['productos_log_estado' => 0]);
+
                     $detalles = DB::table('orden_compra_detalle')->where('id_orden_compra','=',$idOrdenCompra)->get();
                     foreach ($detalles as $de){
                         if ($result == 1){
                             $producto = DB::table('productos')->where('id_pro','=',$de->id_pro)->first();
 
                             if ($producto->control_serie || $producto->control_lote) {
-                                // Eliminar series/lotes de esta orden y recalcular stock
                                 if ($producto->control_serie) {
                                     Series::where('id_orden_compra', $idOrdenCompra)
                                           ->where('id_pro', $de->id_pro)
@@ -791,10 +947,10 @@ class LogisticaController extends Controller
                         }
                     }
                     if ($result == 1){
-                        $message = "Orden de Compra eliminado correctamente.";
+                        $message = "Orden de Compra eliminada correctamente.";
                     }
                 }else{
-                    $message = "No se puedo eliminar la orden de compra.";
+                    $message = "No se pudo eliminar la orden de compra.";
                 }
             }
         }catch  (\Exception $e){
@@ -1058,6 +1214,7 @@ class LogisticaController extends Controller
             $movimientos = DB::table('productos_log as pl')
                 ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                 ->where('pl.id_pro', $id_pro)
+                ->where('pl.productos_log_estado', 1)
                 ->whereBetween('pl.productos_log_fecha', [$fecha_desde, $fecha_hasta])
                 ->select('pl.*', 'tm.tipo_movimiento_descripcion', 'tm.tipo_movimiento_tipo')
                 ->orderBy('pl.productos_log_fecha')
@@ -1071,6 +1228,7 @@ class LogisticaController extends Controller
                 $saldo_anterior = DB::table('productos_log as pl')
                     ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                     ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_estado', 1)
                     ->where('pl.productos_log_fecha', '<', $fecha_desde)
                     ->selectRaw("COALESCE(
                         SUM(CASE WHEN tm.tipo_movimiento_tipo='E' THEN pl.productos_log_cantidad ELSE 0 END) -
@@ -1158,6 +1316,7 @@ class LogisticaController extends Controller
                 $historial = DB::table('productos_log as pl')
                     ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                     ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_estado', 1)
                     ->where('pl.productos_log_fecha', '<', $fecha_desde)
                     ->select('pl.productos_log_cantidad', 'pl.productos_log_costo_unitario', 'tm.tipo_movimiento_tipo')
                     ->orderBy('pl.productos_log_fecha')
@@ -1343,6 +1502,7 @@ class LogisticaController extends Controller
             $movimientos = DB::table('productos_log as pl')
                 ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                 ->where('pl.id_pro', $id_pro)
+                ->where('pl.productos_log_estado', 1)
                 ->whereBetween('pl.productos_log_fecha', [$fecha_desde, $fecha_hasta])
                 ->select('pl.*', 'tm.tipo_movimiento_descripcion', 'tm.tipo_movimiento_tipo')
                 ->orderBy('pl.productos_log_fecha')
@@ -1405,6 +1565,7 @@ class LogisticaController extends Controller
                     DB::table('productos_log as pl')
                         ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                         ->where('pl.id_pro', $id_pro)
+                        ->where('pl.productos_log_estado', 1)
                         ->where('pl.productos_log_fecha', '<', $fecha_desde)
                         ->selectRaw("COALESCE(
                             SUM(CASE WHEN tm.tipo_movimiento_tipo='E' THEN pl.productos_log_cantidad ELSE 0 END) -
@@ -1482,6 +1643,7 @@ class LogisticaController extends Controller
                 $historial = DB::table('productos_log as pl')
                     ->join('tipo_movimiento_producto as tm', 'pl.id_tipo_movimiento_producto', '=', 'tm.id_tipo_movimiento_producto')
                     ->where('pl.id_pro', $id_pro)
+                    ->where('pl.productos_log_estado', 1)
                     ->where('pl.productos_log_fecha', '<', $fecha_desde)
                     ->select('pl.productos_log_cantidad', 'pl.productos_log_costo_unitario', 'tm.tipo_movimiento_tipo')
                     ->orderBy('pl.productos_log_fecha')->orderBy('pl.id_productos_log')
@@ -1788,6 +1950,7 @@ class LogisticaController extends Controller
                         'productos_log_costo_unitario'=> floatval($producto->pro_costo_promedio ?? 0),
                         'productos_log_documento'     => $serie_guia,
                         'productos_log_referencia_id' => $id_guia,
+                        'productos_log_estado'        => 1,
                     ]);
                 }
             }
@@ -1805,7 +1968,9 @@ class LogisticaController extends Controller
             $serie       = trim($request->input('serie', ''));
             $correlativo = trim($request->input('correlativo', ''));
 
-            if ($serie === '' && $correlativo === '') {
+            $soloUltimas = $request->input('last') == '5';
+
+            if ($serie === '' && $correlativo === '' && !$soloUltimas) {
                 return response()->json(['result' => 2, 'mensaje' => 'Ingresa la serie o correlativo.']);
             }
 
@@ -1825,7 +1990,8 @@ class LogisticaController extends Controller
                 $query->where('v.venta_correlativo', 'like', '%' . $correlativo . '%');
             }
 
-            $ventas = $query->orderByDesc('v.id_venta')->limit(15)->get();
+            $limit  = $soloUltimas ? 5 : 15;
+            $ventas = $query->orderByDesc('v.id_venta')->limit($limit)->get();
 
             if ($ventas->isEmpty()) {
                 return response()->json(['result' => 0, 'mensaje' => 'No se encontraron facturas.', 'data' => []]);
@@ -2097,13 +2263,17 @@ class LogisticaController extends Controller
 
             // Motivo traslado
             $motivos = [
-                '01' => 'Venta',
-                '02' => 'Compra',
-                '04' => 'Traslado entre establecimientos de la misma empresa',
-                '18' => 'Importacion',
-                '19' => 'Exportacion',
+                '01' => '01 - Venta',
+                '02' => '02 - Compra',
+                '03' => '03 - Venta con entrega a terceros',
+                '04' => '04 - Traslado entre establecimientos',
+                '05' => '05 - Consignacion',
+                '06' => '06 - Devolucion',
+                '13' => '13 - Otros',
+                '18' => '18 - Importacion',
+                '19' => '19 - Exportacion',
             ];
-            $motivo = $motivos[$guia->guia_motivo] ?? ($guia->guia_motivo ?? '-');
+            $motivo = $motivos[$guia->guia_motivo] ?? (($guia->guia_motivo ?? '') . ' - Otro');
 
             // Modalidad
             $mod_upper = strtoupper($guia->guia_tipo_trans ?? '');
@@ -2121,9 +2291,11 @@ class LogisticaController extends Controller
             // Serie completa
             $serie_completa = ($guia->guia_serie ?? 'T001') . '-' . ($guia->guia_correlativo ?? '00000001');
 
-            // Ubigeos (ciudad)
-            $ciu_part  = $guia->guia_ubigeo_part  ? str_replace(',', ' |', $guia->guia_ubigeo_part)  : '';
-            $ciu_llega = $guia->guia_ubigeo_llega ? str_replace(',', ' |', $guia->guia_ubigeo_llega) : '';
+            // Ubigeos (lookup text from table)
+            $ub_part  = $guia->guia_ubigeo_part  ? DB::table('ubigeo')->where('ubigeo_cod', $guia->guia_ubigeo_part)->first()  : null;
+            $ub_llega = $guia->guia_ubigeo_llega ? DB::table('ubigeo')->where('ubigeo_cod', $guia->guia_ubigeo_llega)->first() : null;
+            $ciu_part  = $ub_part  ? ($ub_part->ubigeo_departamento  . ' / ' . $ub_part->ubigeo_provincia  . ' / ' . $ub_part->ubigeo_distrito)  : ($guia->guia_ubigeo_part  ?? '');
+            $ciu_llega = $ub_llega ? ($ub_llega->ubigeo_departamento . ' / ' . $ub_llega->ubigeo_provincia . ' / ' . $ub_llega->ubigeo_distrito) : ($guia->guia_ubigeo_llega ?? '');
 
             // ─────────────────────────────────────────────────────────
             // PDF
@@ -2137,18 +2309,18 @@ class LogisticaController extends Controller
             $ys = $pdf->GetY(); // 10mm
             $logo_path = $guia->empresa_foto_ticket ?? '';
             if ($logo_path && file_exists($logo_path)) {
-                $pdf->Image($logo_path, 10, $ys, 45, 25);
+                $pdf->Image($logo_path, 10, $ys, 58, 30);
             }
 
             // Company name + address (center)
-            $pdf->SetXY(47, $ys + 4);
-            $pdf->SetFont('Helvetica', 'B', 13);
+            $pdf->SetXY(70, $ys + 3);
+            $pdf->SetFont('Helvetica', 'B', 10.5);
             $pdf->SetTextColor(26, 26, 26);
-            $pdf->MultiCell(95, 7, utf8_decode($guia->empresa_razon_social ?? ''), 0, 'C');
-            $pdf->SetX(47);
-            $pdf->SetFont('Helvetica', '', 7.5);
+            $pdf->MultiCell(73, 6, utf8_decode($guia->empresa_razon_social ?? ''), 0, 'C');
+            $pdf->SetX(70);
+            $pdf->SetFont('Helvetica', '', 6.5);
             $pdf->SetTextColor(60, 60, 60);
-            $pdf->MultiCell(95, 4, utf8_decode($guia->empresa_domiciliofiscal ?? ''), 0, 'C');
+            $pdf->MultiCell(73, 4, utf8_decode($guia->empresa_domiciliofiscal ?? ''), 0, 'C');
             $y_company = $pdf->GetY();
 
             // Right box: RUC / tipo / serie
@@ -2215,13 +2387,11 @@ class LogisticaController extends Controller
             $pdf->Cell(54, 5, $serie_completa, 0, 1, 'L');
             $pdf->SetTextColor(0, 0, 0);
 
-            // City line (destinatario)
-            if ($dest_direccion || $ciu_llega) {
+            // City line (destinatario — only address, no ubigeo)
+            if ($dest_direccion) {
                 $pdf->SetX(28);
                 $pdf->SetFont('Helvetica', '', 7.5);
-                $city_text = $dest_direccion ? utf8_decode($dest_direccion) : '';
-                if ($ciu_llega) $city_text .= ($city_text ? ' - ' : '') . $ciu_llega;
-                $pdf->Cell(75, 4, $city_text, 0, 0, 'L');
+                $pdf->Cell(75, 4, utf8_decode($dest_direccion), 0, 0, 'L');
             }
             // FECHA EMISIÓN (right)
             $pdf->SetXY(143, $pdf->GetY() ?: ($y_now + 15));
@@ -2315,7 +2485,7 @@ class LogisticaController extends Controller
             $bar('DATOS DE TRANSPORTE Y CONFORMIDAD');
 
             $y_s4 = $pdf->GetY();
-            $col  = 63; // each of 3 columns width
+            $col  = 62; // each of 3 columns width (3×62 + 2×1gap + 2×margins = 190mm)
             $x1 = 10; $x2 = 10 + $col + 1; $x3 = 10 + ($col + 1) * 2;
 
             // Sub-headers (small gray bar)
@@ -2337,10 +2507,10 @@ class LogisticaController extends Controller
 
             $pdf->SetFont('Helvetica', '', 7.5);
 
-            // Conductor name
+            // Conductor name (MultiCell so long names wrap inside the column)
             $pdf->SetXY($x1, $y_sub + 3);
             $pdf->Cell($cond_label_w, 5, 'Conductor:', 0, 0, 'L');
-            $pdf->Cell($cond_val_w, 5, utf8_decode($cond_nombre ?: ''), 'B', 1, 'L');
+            $pdf->MultiCell($cond_val_w, 5, utf8_decode($cond_nombre ?: ''), 'B', 'L');
 
             // DNI Conductor
             $pdf->SetX($x1);
@@ -2417,8 +2587,8 @@ class LogisticaController extends Controller
             $pdf->Line(10+$col+1,$y_s4,    10+$col+1,$y_s4_end);
             $pdf->Line(10+$col*2+1,$y_s4,  10+$col*2+1,$y_s4_end);
             $pdf->Line(10+$col*2+2,$y_s4,  10+$col*2+2,$y_s4_end);
-            $pdf->Line(200,      $y_s4,    200,       $y_s4_end);
-            $pdf->Line(10, $y_s4_end, 200, $y_s4_end);
+            $pdf->Line(10+$col*3+2,$y_s4,  10+$col*3+2,$y_s4_end);
+            $pdf->Line(10, $y_s4_end, 10+$col*3+2, $y_s4_end);
             $pdf->SetDrawColor(0, 0, 0);
 
             $pdf->SetY($y_s4_end + 5);
@@ -2431,6 +2601,17 @@ class LogisticaController extends Controller
             $pdf->SetFont('Helvetica', 'I', 7);
             $pdf->Cell(190, 4, utf8_decode("Documento generado por Sistema | $fecha_gen"), 0, 1, 'C');
 
+            // QR code (bottom-left if file exists)
+            $qr_ruc   = $guia->empresa_ruc ?? '';
+            $qr_tipo  = $guia->guia_tipo ?? '09';
+            $qr_serie = $guia->guia_serie ?? 'T001';
+            $qr_corr  = $guia->guia_correlativo ?? '';
+            $qr_path  = public_path('ApiFacturacion/imagenqr/' . $qr_ruc . '-' . $qr_tipo . '-' . $qr_serie . '-' . $qr_corr . '.png');
+            if (file_exists($qr_path)) {
+                $y_qr = $pdf->GetY() + 3;
+                $pdf->Image($qr_path, 10, $y_qr, 28, 28);
+            }
+
             $nombre = 'Guia_' . ($guia->guia_serie ?? 'T001') . '-' . ($guia->guia_correlativo ?? '') . '.pdf';
             $pdf->Output('I', $nombre);
             exit;
@@ -2438,6 +2619,21 @@ class LogisticaController extends Controller
         } catch (\Exception $e) {
             $this->logs->insertarLog($e);
             return response('Error al generar PDF: ' . $e->getMessage(), 500);
+        }
+    }
+
+    public function verificar_serie(Request $request)
+    {
+        try {
+            $numero_serie = trim($request->input('numero_serie', ''));
+            if ($numero_serie === '') {
+                return response()->json(['existe' => false]);
+            }
+            $existe = DB::table('series')->where('numero_serie', $numero_serie)->exists();
+            return response()->json(['existe' => $existe]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['existe' => false]);
         }
     }
 

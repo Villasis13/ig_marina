@@ -1,5 +1,8 @@
 let array_orden_compra = [];
 let ocSearchTimer = null;
+function formatMiles(n) {
+    return Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 let btn_crear_productos = document.getElementById('btn_crear_productos');
 if(btn_crear_productos && btn_crear_productos.addEventListener){
     btn_crear_productos.addEventListener('click',function (){
@@ -58,14 +61,14 @@ $("#formularioAgregarProductos").on('submit', function(e){
                 switch (r.result.code) {
                     case 1:
                         respuesta(r.result.message, 'success');
-                        setTimeout(function () {
-                            location.reload();
-                        }, 1000);
+                        $('#modal_crear_productos').modal('hide');
+                        if (typeof buscarProductos === 'function') {
+                            setTimeout(buscarProductos, 600);
+                        }
                         break;
                     case 2:respuesta(r.result.message, 'error');break;
                     case 3:respuesta(r.result.message, 'error');break;
                     case 4:respuesta(r.result.message, 'error');break;
-                    // case 6:respuesta('Algún dato NO fue ingresado correctamente', 'error');break;
                     default:respuesta('¡Algo catastrofico ha ocurrido!', 'error');break;
                 }
                 cambiar_estado_boton(boton, "Guardar registro", false);
@@ -93,6 +96,12 @@ function filtrarCategorias(idFa) {
 }
 
 function modificarProductos(id){
+    // Limpiar formulario y file input antes de cargar datos del producto
+    limpiarCampos('formularioAgregarProductos');
+    $('#pro_foto').val('');
+    $('#imagen_producto').attr('src', ruta_global + 'sin-fotografia.png');
+    $('#ids_proveedores option').prop('selected', false);
+
     $.ajax({
         url:ruta_global+"logistica/listar_datos_productos",
         method: 'post',
@@ -149,37 +158,29 @@ function modificarProductos(id){
     });
 }
 
-function eliminar_producto(id){
-    var boton = "btnEliminarProducto_"+id
+function toggleProducto(id, btn) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
     $.ajax({
-        type: "POST",
-        url: ruta_global + "logistica/guardar_producto",
-        data:{
-            id_pro:id,
-            estadoActionFuctionProductos:3,
-            "_token": $("meta[name='csrf-token']").attr("content")
-        },
+        type: 'POST',
+        url: ruta_global + 'logistica/toggle_producto',
+        data: { id_pro: id, '_token': $("meta[name='csrf-token']").attr('content') },
         dataType: 'json',
-        beforeSend: function () {
-            cambiar_estado_boton(boton, 'Eliminando...', true);
-        },
-        success:function (r) {
-            switch (r.result.code) {
-                case 1:
-                    respuesta(r.result.message, 'success');
-                    setTimeout(function () {
-                        location.reload();
-                    }, 1000);
-                    break;
-                case 2:respuesta(r.result.message, 'error');break;
-                case 3:respuesta(r.result.message, 'error');break;
-                case 4:respuesta(r.result.message, 'error');break;
-                // case 3:$('#mensajeguardar').html(r.result.message);break;
-                case 5:respuesta(r.result.message, 'error');break;
-                // case 6:respuesta('Algún dato NO fue ingresado correctamente', 'error');break;
-                default:respuesta('¡Algo catastrofico ha ocurrido!', 'error');break;
+        success: function(r) {
+            if (r.result.code === 1) {
+                respuesta(r.result.message, 'success');
+                if (typeof buscarProductos === 'function') setTimeout(buscarProductos, 600);
+            } else {
+                respuesta(r.result.message || '¡Error al cambiar estado!', 'error');
+                btn.disabled = false;
+                btn.innerHTML = original;
             }
-            cambiar_estado_boton(boton, "<i class=\"fa-solid fa-trash\"></i>", false);
+        },
+        error: function() {
+            respuesta('Error de conexión', 'error');
+            btn.disabled = false;
+            btn.innerHTML = original;
         }
     });
 }
@@ -309,7 +310,7 @@ function dibujar_tabla_productos_orden_compra(){
                     <td>UNIDAD (BIENES)</td>
                     <td>${cantidadInput}</td>
                     <td><input type="text" onkeyup="validar_numeros(this.id)" id="precio_compra_${index}" class="form-control w-px-100 border-none outline-none" onchange="calcular_precio_total_recurso_orden_compra(${index})" name="precio_compra_${index}" value="${el.producto_precio_unit}"></td>
-                    <td><input type="text" readonly id="total_recursos_${index}" class="form-control w-px-100 border-none outline-none" name="total_recursos_${index}" value="${el.precio_total}"></td>
+                    <td><input type="text" readonly id="total_recursos_${index}" class="form-control w-px-100 border-none outline-none" name="total_recursos_${index}" value="${formatMiles(el.precio_total)}"></td>
                     <td><a class="btn btn-sm text-white bg-danger" type="button" onclick="eliminar_recurso_orden_compra(${index})"><i class="fa fa-trash"></i></a></td>
                 </tr>`;
 
@@ -405,11 +406,38 @@ function agregarSerie(index) {
         respuesta('El número de serie es obligatorio.', 'error');
         return;
     }
-    let duplicado = array_orden_compra[index].series.some(function(s) { return s.numero_serie === numero_serie; });
-    if (duplicado) {
-        respuesta('Ya existe esa serie en este producto.', 'error');
+    // Verificar duplicado en cualquier producto del array (en memoria)
+    let productoRepetido = null;
+    array_orden_compra.forEach(function(item, i) {
+        if (item.series && item.series.some(function(s) { return s.numero_serie === numero_serie; })) {
+            productoRepetido = item.producto_nombre || ('producto #' + (i + 1));
+        }
+    });
+    if (productoRepetido) {
+        respuesta('Serie duplicada: "' + numero_serie + '" ya fue ingresada en ' + productoRepetido + '.', 'error');
         return;
     }
+    // Verificar duplicado en la tabla series de la BD
+    $.ajax({
+        type: 'POST',
+        url: ruta_global + 'logistica/verificar_serie',
+        data: { numero_serie: numero_serie, '_token': $("meta[name='csrf-token']").attr('content') },
+        dataType: 'json',
+        success: function(r) {
+            if (r.existe) {
+                respuesta('Serie duplicada: "' + numero_serie + '" ya existe en el sistema.', 'error');
+                return;
+            }
+            _confirmarAgregarSerie(index, numero_serie);
+        },
+        error: function() {
+            // Si falla la consulta, igual permite agregar (no bloquear por error de red)
+            _confirmarAgregarSerie(index, numero_serie);
+        }
+    });
+}
+
+function _confirmarAgregarSerie(index, numero_serie) {
     array_orden_compra[index].series.push({
         numero_serie:  numero_serie,
         numero_motor:  $('#ns_motor_' + index).val().trim() || null,
@@ -474,7 +502,6 @@ function calcular_precio_total_recurso_orden_compra(index){
     el.producto_precio_unit = precio;
 
     if (el.control_serie || el.control_lote) {
-        // La cantidad ya está fijada por series/lotes; solo recalcula el total
         el.precio_total = (el.cantidad * precio).toFixed(2);
         array_orden_compra[index] = el;
     } else {
@@ -491,13 +518,13 @@ function calcular_precio_total_recurso_orden_compra(index){
 }
 function total_orden_compra(){
     let total = 0;
-    let sum = 0;
     if(array_orden_compra.length > 0){
         array_orden_compra.map(function(el,index){
             total += el.precio_total * 1;
-        })
-        $('#total').val(total.toFixed(2))
+        });
     }
+    $('#total').val(formatMiles(total));        // visual con coma de millar
+    $('#total_raw').val(total.toFixed(2));      // valor numérico limpio para el servidor
 }
 
 function validar_campo_table(campo,index,mensaje){
@@ -517,7 +544,7 @@ $("#formulario_orden_compra").on('submit', function(e){
     var orden_compra_condicion = $('#orden_compra_condicion').val();
     // var id_almacen  = $('id_almacen').val();
     var num_documento_  = $('#num_documento_').val();
-    var total  = $('#total').val();
+    var total  = $('#total_raw').val();
     valor = validar_campo_vacio('id_proveedores', id_proveedores, valor);
     valor = validar_campo_vacio('id_tipo_venta', id_tipo_venta, valor);
     valor = validar_campo_vacio('fecha_emision', fecha_emision, valor);
@@ -585,6 +612,10 @@ $("#formulario_orden_compra").on('submit', function(e){
                     // case 6:respuesta('Algún dato NO fue ingresado correctamente', 'error');break;
                     default:respuesta('¡Algo catastrofico ha ocurrido!', 'error');break;
                 }
+                cambiar_estado_boton(boton, "Guardar Registro", false);
+            },
+            error: function () {
+                respuesta('Error de conexión. Intente de nuevo.', 'error');
                 cambiar_estado_boton(boton, "Guardar Registro", false);
             }
         });
@@ -657,7 +688,7 @@ function buscar_historial_orden_compras(){
                             <td>${enlace}</td>
                             <td>${el.orden_compra_numero}</td>
                             <td>
-                                S/${el.total}
+                                S/ ${formatMiles(el.total)}
                                <b class="text-success">${el.tipo_pago_nombre || 'Crédito'}</b>
                             </td>
                             <td>

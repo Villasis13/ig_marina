@@ -278,6 +278,7 @@ class GestionventasController extends Controller
                                         'productos_log_costo_unitario'=> floatval($validar_stock_2->pro_costo_promedio ?? 0),
                                         'productos_log_documento'     => 'MP-' . $ul_creacion->id_movimientos_productos,
                                         'productos_log_referencia_id' => $ul_creacion->id_movimientos_productos,
+                                        'productos_log_estado'        => 1,
                                     ]);
                                     $reducir = DB::table('productos')->where('id_pro', '=', $d->id_producto)->update(['pro_stock' => $validar_stock->pro_stock - $d->cantidad]);
                                     // Marcar serie como vendida en movimiento de salida y sincronizar pro_stock
@@ -328,6 +329,7 @@ class GestionventasController extends Controller
                                     'productos_log_costo_unitario'=> floatval($informacionProducto->pro_costo_promedio ?? 0),
                                     'productos_log_documento'     => 'MP-' . $idUltimoRegistro,
                                     'productos_log_referencia_id' => $idUltimoRegistro,
+                                    'productos_log_estado'        => 1,
                                 ]);
                                 $updateProduct = Productos::find($d->id_producto);
                                 $updateProduct->pro_stock = ($informacionProducto->pro_stock + $d->cantidad);
@@ -782,6 +784,7 @@ class GestionventasController extends Controller
                                                 $detalles[] = [
                                                     'id_venta' => $ultima_venta->id_venta,
                                                     'id_pro' => $d['id_pro'],
+                                                    'id_serie' => !empty($d['id_serie_producto']) ? $d['id_serie_producto'] : null,
                                                     'venta_detalle_valor_unitario' => $precio - $cantidad_igv,
                                                     'venta_detalle_precio_unitario' => $precio,
                                                     'venta_detalle_nombre_producto' => $d['nombre_producto'],
@@ -815,6 +818,7 @@ class GestionventasController extends Controller
                                                         'productos_log_costo_unitario'=> floatval($det['venta_detalle_precio_unitario'] ?? 0),
                                                         'productos_log_documento'     => $doc_log,
                                                         'productos_log_referencia_id' => $ultima_venta->id_venta,
+                                                        'productos_log_estado'        => 1,
                                                     ]);
                                                 }
                                                 $ara_cuoas = [];
@@ -970,6 +974,7 @@ class GestionventasController extends Controller
                                                 $detalles[] = [
                                                     'id_venta' => $ultima_venta->id_venta,
                                                     'id_pro' => $d['id_pro'],
+                                                    'id_serie' => !empty($d['id_serie_producto']) ? $d['id_serie_producto'] : null,
                                                     'venta_detalle_valor_unitario' => $precio - $cantidad_igv,
                                                     'venta_detalle_precio_unitario' => $precio,
                                                     'venta_detalle_nombre_producto' => $d['nombre_producto'],
@@ -1003,6 +1008,7 @@ class GestionventasController extends Controller
                                                         'productos_log_costo_unitario'=> floatval($det['venta_detalle_precio_unitario'] ?? 0),
                                                         'productos_log_documento'     => $doc_log,
                                                         'productos_log_referencia_id' => $ultima_venta->id_venta,
+                                                        'productos_log_estado'        => 1,
                                                     ]);
                                                 }
                                                 // guardado en venta detalle pago

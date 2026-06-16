@@ -47,7 +47,7 @@ class Productos extends Model
     }
     public function datos_productos($id){
         try {
-            $result = DB::table('productos as p')->where([['p.pro_estado','=',1],['p.id_pro','=',$id]])->first();
+            $result = DB::table('productos as p')->where('p.id_pro','=',$id)->first();
         }catch (\Exception $e){
             $this->logs->insertarLog($e);
             $result = [];

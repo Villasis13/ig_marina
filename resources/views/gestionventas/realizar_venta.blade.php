@@ -35,16 +35,24 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fa-solid fa-motorcycle"></i> Seleccionar Número de Serie</h5>
+                    <h5 class="modal-title"><i class="fa-solid fa-motorcycle"></i> Seleccionar Series</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-2">Producto: <strong id="serie_modal_producto_nombre"></strong></p>
+                    <p class="mb-2" style="font-size:13px;">
+                        <i class="fa fa-info-circle text-primary"></i>
+                        Marca una o varias series y presiona <strong>Confirmar</strong>.
+                        <span id="serie_contador" class="badge bg-primary ms-2">0 seleccionada(s)</span>
+                    </p>
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered">
                             <thead class="table-primary">
                                 <tr>
-                                    <th>N° Serie</th><th>N° Motor</th><th>Color</th><th>Año</th><th>Seleccionar</th>
+                                    <th style="width:40px;text-align:center;">
+                                        <input type="checkbox" id="chk_series_all" title="Seleccionar todas" onchange="toggleTodasSeries(this)">
+                                    </th>
+                                    <th>N° Serie</th><th>N° Motor</th><th>Color</th><th>Año</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody_series_vehiculo">
@@ -53,6 +61,12 @@
                         </table>
                     </div>
                     <p id="msg_sin_series" class="text-danger d-none">No hay series disponibles para este producto.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmarSeleccionSeries()">
+                        <i class="fa fa-check"></i> Confirmar selección
+                    </button>
                 </div>
             </div>
         </div>

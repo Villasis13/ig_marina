@@ -1,268 +1,347 @@
 @extends('layouts.plantilla')
 @section('content')
-    <!-- Modal -->
+<style>
+.oc-detail-wrap { max-width: 1100px; margin: 0 auto; }
 
+/* Header card */
+.oc-header-card {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    border-radius: 14px;
+    padding: 28px 32px;
+    color: #fff;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: 0 4px 24px rgba(37,99,235,.25);
+}
+.oc-header-logo {
+    /*width: 72px;*/
+    height: 50px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.15);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.oc-header-logo img { width: 100%; height: 100%; object-fit: contain; }
+.oc-header-info { flex: 1; }
+.oc-header-empresa { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.oc-header-sub { font-size: 13px; opacity: .8; margin: 0; }
+.oc-header-badge {
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 8px;
+    padding: 10px 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.oc-header-badge-label { font-size: 11px; opacity: .75; text-transform: uppercase; letter-spacing: .5px; }
+.oc-header-badge-val { font-size: 22px; font-weight: 700; font-family: monospace; }
 
-    <div class="tab-content">
-        @can($opciones[0]->opciones_funcion)
-        {{-- tab 1--}}
-        <div id="vista_para_opciones_{{$opciones[0]->id_opciones}}" class="tab-pane fade show active " role="tabpanel" aria-labelledby="opciones_{{$opciones[0]->id_opciones}}" >
-            <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
-                <div class="card">
-                    <div class="row m-2">
-                        <div class="col-md-3">
+/* Status strip */
+.oc-status-strip {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.oc-stat {
+    flex: 1; min-width: 150px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.oc-stat-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+}
+.oc-stat-icon.blue  { background: #eff6ff; color: #2563eb; }
+.oc-stat-icon.green { background: #f0fdf4; color: #16a34a; }
+.oc-stat-icon.amber { background: #fffbeb; color: #d97706; }
+.oc-stat-icon.red   { background: #fef2f2; color: #dc2626; }
+.oc-stat-icon.purple{ background: #f5f3ff; color: #7c3aed; }
+.oc-stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+.oc-stat-val   { font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px; }
 
-                        </div>
-                        <div class="col-md-5">
-                            <h5 style="text-align: center">{{$orden_compra->orden_compra_titulo}}</h5>
-                        </div>
-                        <div class="col-md-4">
-                            @if($orden_compra->orden_compra_estado == 1)
-                                <h5 style="text-align: center">OC <?= $orden_compra->orden_compra_numero; ?></h5>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-12 col-md-12 col-sm-12">
-                <div class="card ">
-                    <div class="row p-3 mt-3">
-                        <div class="col-lg-2 d-flex justify-content-center align-items-center">
-                            <img alt="logo" src="{{asset($empresa->empresa_foto != null ? $empresa->empresa_foto : "sin-fotografia.png")}}" class="w-50">
-                        </div>
-                        <div class="col-lg-10">
-                            <div class="row">
-                                @if($orden_compra->orden_compra_estado==0)
-                                    <h5 class="card-title">Detalle de Orden de Compra: Solicitante: <b><?= $orden_compra->nombre_users ?></b> | Fecha de Solicitud: <b><?= date("d-m-Y",strtotime($orden_compra->orden_compra_fecha)); ?></b>
-                                        <br> | Descripción de la Solicitud: <?= $orden_compra->orden_compra_titulo?> | Total: <?= $total ?></h5>
-                                @else
-                                    <h3 class="card-title mb-4 mt-4">Empresa: <b class="text-primary"><?= $empresa->empresa_nombrecomercial;?></b></h3>
-                                    <div class="col-lg-6">
-                                        <div class="row">
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <h5 class="card-title "><i class="fa-solid fa-user text-primary"></i> Solicitante: </h5>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <b class="text-success"><?= $orden_compra->nombre_users;?></b>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <h5 class="card-title "><i class="fa-solid fa-list-check text-primary"></i> N° de Comprobante: </h5>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <b class="text-success">#<?= $orden_compra->orden_compra_numero_doc;?></b>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <h5 class="card-title "><i class="fa-solid fa-clock text-primary"></i> Fecha de emisión: </h5>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <b class="text-success"><?= date("d-m-Y H:i:s",strtotime($orden_compra->orden_compra_fecha)); ?></b>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <h5 class="card-title "><i class="fa-solid fa-person text-primary"></i> Proveedor: </h5>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <b class="text-success"><?= $orden_compra->proveedores_nombre;?></b>
-                                            </div>
-                                            @if($orden_compra->orden_compra_fecha_vencimiento)
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <h5 class="card-title "><i class="fa-solid fa-calendar-xmark text-primary"></i> Fecha de Vencimiento: </h5>
-                                            </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                                <b class="text-success"><?= date("d-m-Y", strtotime($orden_compra->orden_compra_fecha_vencimiento)); ?></b>
-                                            </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                <div class="col-lg-6">
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <h5 class="card-title "><i class="fa-solid fa-clipboard-list text-primary"></i> Comprobante: </h5>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <a href="{{asset($orden_compra->orden_compra_doc_adjuntado)}}">{{$orden_compra->orden_compra_tipo_doc}}</a>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <h5 class="card-title"><i class="fa-solid fa-handshake text-primary"></i> Condición: </h5>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <b class="text-success">{{ $orden_compra->orden_compra_condicion == 1 ? 'Crédito' : 'Contado' }}</b>
-                                        </div>
-                                        @if($orden_compra->orden_compra_guia_remicion)
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <h5 class="card-title"><i class="fa-solid fa-file-lines text-primary"></i> Guía de Remisión: </h5>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <b class="text-success">{{ $orden_compra->orden_compra_guia_remicion }}</b>
-                                        </div>
-                                        @endif
-                                        @if($orden_compra->orden_compra_guia_transportista)
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <h5 class="card-title"><i class="fa-solid fa-truck text-primary"></i> Guía Transportista: </h5>
-                                        </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12 mb-2 ">
-                                            <b class="text-success">{{ $orden_compra->orden_compra_guia_transportista }}</b>
-                                        </div>
-                                        @endif
-                                        <div class="col-lg-12 col-md-12 col-sm-12 mb-2 ">
-                                            <h5 class="card-title"><i class="fa-solid fa-sack-dollar text-primary"></i> Total En <b class="text-warning">{{$orden_compra->tipo_pago_nombre}}</b>: </h5>
-                                        </div>
-                                        <div class="col-lg-12 col-md-12 col-sm-12 mb-2 ">
-                                            <h3 class="text-danger">S/ {{ number_format($total + $orden_compra->orden_compra_flete + $orden_compra->orden_compra_gastos_operativos, 2) }}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-12 col-md-12 col-sm-12">
-                                    <h5 class="card-title"><i class="fa-solid fa-comment text-primary"></i> Observación:</h5>
-                                    <h3 class="">{{$orden_compra->orden_compra_observacion}}</h3>
-                                </div>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="col-lg-12 col-md-12 col-sm-12 mt-3 table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Producto</th>
-                                        <th>Familia</th>
-                                        <th>Cantidad Solicitada</th>
-                                        <th>Precio Unit</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                @php $a =1; @endphp
-                                @foreach($detalle_orden_compra as $de)
-                                    <tr>
-                                        <td>{{ $a }}</td>
-                                        <td>
-                                            {{ $de->detalle_orden_nombre_producto }}
-                                            @if($de->pro_codigo)
-                                                <br><small class="text-muted">{{ $de->pro_codigo }}</small>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($de->fa_nombre)
-                                                {{ $de->familia_codigo }} - {{ $de->fa_nombre }}
-                                            @else
-                                                <span class="text-muted">-</span>
-                                            @endif
-                                        </td>
-                                        <td>{{ $de->detalle_compra_cantidad }}</td>
-                                        <td>S/ {{ number_format($de->detalle_compra_precio_compra, 2) }}</td>
-                                        <td>S/ {{ number_format($de->detalle_compra_total_pedido, 2) }}</td>
-                                    </tr>
-                                    @php $a++; @endphp
-                                @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="col-lg-12 mt-2">
-                            <a href="javascript:history.back();" class="btn btn-warning text-left-white float-end"><i class="fa fa-history"></i> Regresar</a>
-                        </div>
-                    </div>
-                </div>
+/* Info grid */
+.oc-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+@media(max-width:768px){ .oc-info-grid { grid-template-columns: 1fr; } }
+
+.oc-info-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.oc-info-card-title {
+    font-size: 12px; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: .5px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 7px;
+}
+.oc-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.oc-row:last-child { border-bottom: none; }
+.oc-row-label { font-size: 13px; color: #64748b; }
+.oc-row-val   { font-size: 13px; font-weight: 600; color: #1e293b; text-align: right; }
+
+/* Total card */
+.oc-total-card {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1.5px solid #86efac;
+    border-radius: 12px;
+    padding: 18px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+}
+.oc-total-label { font-size: 14px; font-weight: 600; color: #15803d; }
+.oc-total-amount { font-size: 28px; font-weight: 800; color: #15803d; font-family: monospace; }
+
+/* Observation */
+.oc-obs {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: #92400e;
+    margin-bottom: 20px;
+    display: flex; gap: 10px; align-items: flex-start;
+}
+
+/* Table */
+.oc-table-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    margin-bottom: 20px;
+}
+.oc-table-title {
+    padding: 14px 20px;
+    font-size: 13px; font-weight: 700; color: #1e293b;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 8px;
+}
+.oc-table-card table { margin: 0; }
+.oc-table-card thead tr { background: #f8fafc; }
+.oc-table-card thead th { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.oc-table-card tbody td { font-size: 13.5px; padding: 11px 14px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+.oc-table-card tbody tr:last-child td { border-bottom: none; }
+.oc-table-card tbody tr:hover { background: #f8fafc; }
+.oc-num { font-family: monospace; }
+
+/* Back button */
+.oc-back-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 9px;
+    background: #f1f5f9; color: #475569;
+    font-size: 13.5px; font-weight: 600;
+    text-decoration: none; border: 1px solid #e2e8f0;
+    transition: background .15s;
+}
+.oc-back-btn:hover { background: #e2e8f0; color: #1e293b; text-decoration: none; }
+</style>
+
+<div class="tab-content">
+@can($opciones[0]->opciones_funcion)
+<div id="vista_para_opciones_{{$opciones[0]->id_opciones}}" class="tab-pane fade show active" role="tabpanel">
+<div class="oc-detail-wrap py-3 px-2">
+
+    {{-- HEADER --}}
+    <div class="oc-header-card">
+        <div class="oc-header-logo">
+            <img src="{{ asset($empresa->empresa_foto ?? 'logo_IGLM.png') }}" alt="Logo">
+        </div>
+        <div class="oc-header-info">
+            <p class="oc-header-empresa">{{ $empresa->empresa_nombrecomercial }}</p>
+            <p class="oc-header-sub">Detalle de Compra · {{ $orden_compra->orden_compra_tipo_doc }} #{{ $orden_compra->orden_compra_numero_doc }}</p>
+        </div>
+        <div class="oc-header-badge">
+            <div class="oc-header-badge-label">OC N°</div>
+            <div class="oc-header-badge-val">{{ $orden_compra->orden_compra_numero }}</div>
+            <div style="margin-top:6px">
+                @if($orden_compra->orden_compra_estado == 1)
+                    <span style="background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;">✓ Activa</span>
+                @else
+                    <span style="background:rgba(220,38,38,.3);border-radius:20px;padding:3px 10px;font-size:11px;">✗ Anulada</span>
+                @endif
             </div>
         </div>
-        @endcan
     </div>
 
-    <style>
-        .button_dis{
-            background: #0b1892;
-            width: 50%;
-            height: 20px;
-            color: white;
-            border-radius: 3px;
-        }
+    {{-- STAT STRIP --}}
+    <div class="oc-status-strip">
+        <div class="oc-stat">
+            <div class="oc-stat-icon blue"><i class="fa-solid fa-user"></i></div>
+            <div>
+                <div class="oc-stat-label">Solicitante</div>
+                <div class="oc-stat-val">{{ $orden_compra->nombre_users }}</div>
+            </div>
+        </div>
+        <div class="oc-stat">
+            <div class="oc-stat-icon green"><i class="fa-solid fa-building"></i></div>
+            <div>
+                <div class="oc-stat-label">Proveedor</div>
+                <div class="oc-stat-val">{{ $orden_compra->proveedores_nombre }}</div>
+            </div>
+        </div>
+        <div class="oc-stat">
+            <div class="oc-stat-icon amber"><i class="fa-solid fa-handshake"></i></div>
+            <div>
+                <div class="oc-stat-label">Condición</div>
+                <div class="oc-stat-val">{{ $orden_compra->orden_compra_condicion == 1 ? 'Crédito' : 'Contado' }}</div>
+            </div>
+        </div>
+        <div class="oc-stat">
+            <div class="oc-stat-icon purple"><i class="fa-solid fa-wallet"></i></div>
+            <div>
+                <div class="oc-stat-label">Tipo de Pago</div>
+                <div class="oc-stat-val">{{ $orden_compra->tipo_pago_nombre ?? '—' }}</div>
+            </div>
+        </div>
+        <div class="oc-stat">
+            <div class="oc-stat-icon blue"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div>
+                <div class="oc-stat-label">Productos</div>
+                <div class="oc-stat-val">{{ count($detalle_orden_compra) }} ítems</div>
+            </div>
+        </div>
+    </div>
 
-        .button_regresar_a_insumos_normal{
-            float: left;
-            width: 24%;
-            background: #009c8e;
-            border-radius: 4px;
-            text-align: center;
-            color: white;
-            text-decoration: none;
-            margin-right: 18%;
-        }
-        .button_regresar_a_insumos_normal:hover{
-            color: white
-        }
-        .button_agregar_stock{
-            width: 6%;
-            height: 20px;
-            background: #0b1892;
-            color: white;
-            border-radius: 4px;
-        }
+    {{-- INFO GRID --}}
+    <div class="oc-info-grid">
+        <div class="oc-info-card">
+            <div class="oc-info-card-title"><i class="fa-solid fa-calendar-days text-primary"></i> Fechas</div>
+            <div class="oc-row">
+                <span class="oc-row-label">Fecha de registro</span>
+                <span class="oc-row-val">{{ date('d/m/Y H:i', strtotime($orden_compra->orden_compra_fecha)) }}</span>
+            </div>
+            <div class="oc-row">
+                <span class="oc-row-label">Fecha de emisión</span>
+                <span class="oc-row-val">{{ $orden_compra->orden_compra_fecha_emision_doc ? date('d/m/Y', strtotime($orden_compra->orden_compra_fecha_emision_doc)) : '—' }}</span>
+            </div>
+            @if($orden_compra->orden_compra_fecha_vencimiento)
+            <div class="oc-row">
+                <span class="oc-row-label">Fecha de vencimiento</span>
+                <span class="oc-row-val" style="color:#dc2626">{{ date('d/m/Y', strtotime($orden_compra->orden_compra_fecha_vencimiento)) }}</span>
+            </div>
+            @endif
+        </div>
 
-    </style>
+        <div class="oc-info-card">
+            <div class="oc-info-card-title"><i class="fa-solid fa-file-lines text-primary"></i> Documentos</div>
+            <div class="oc-row">
+                <span class="oc-row-label">Tipo comprobante</span>
+                <span class="oc-row-val">{{ $orden_compra->orden_compra_tipo_doc }}</span>
+            </div>
+            <div class="oc-row">
+                <span class="oc-row-label">N° comprobante</span>
+                <span class="oc-row-val oc-num">#{{ $orden_compra->orden_compra_numero_doc }}</span>
+            </div>
+            @if($orden_compra->orden_compra_guia_remicion)
+            <div class="oc-row">
+                <span class="oc-row-label">Guía de remisión</span>
+                <span class="oc-row-val oc-num">{{ $orden_compra->orden_compra_guia_remicion }}</span>
+            </div>
+            @endif
+            @if($orden_compra->orden_compra_guia_transportista)
+            <div class="oc-row">
+                <span class="oc-row-label">Guía transportista</span>
+                <span class="oc-row-val oc-num">{{ $orden_compra->orden_compra_guia_transportista }}</span>
+            </div>
+            @endif
+            @if($orden_compra->orden_compra_doc_adjuntado && $orden_compra->orden_compra_doc_adjuntado !== 'sin-fotografia.png')
+            <div class="oc-row">
+                <span class="oc-row-label">Adjunto</span>
+                <a href="{{ asset($orden_compra->orden_compra_doc_adjuntado) }}" target="_blank" class="oc-row-val" style="color:#2563eb">
+                    <i class="fa-solid fa-paperclip me-1"></i>Ver documento
+                </a>
+            </div>
+            @endif
+        </div>
+    </div>
 
-    <script>
+    {{-- OBSERVACIÓN --}}
+    @if($orden_compra->orden_compra_observacion && $orden_compra->orden_compra_observacion !== '---')
+    <div class="oc-obs">
+        <i class="fa-solid fa-circle-info" style="margin-top:2px;flex-shrink:0"></i>
+        <div><strong>Observación:</strong> {{ $orden_compra->orden_compra_observacion }}</div>
+    </div>
+    @endif
 
-        function validar_convertir(){
-            let va = $('#convertir_producto').is(':checked')
-            if(va == true)
-            {
-                $('#convertir_si').show();
-            }
-            else {
-                $('#convertir_si').hide();
-            }
-        }
-        function  convertir_cantidad(){
-            let elegir = $('#elegir_convertir').val()
-            if(elegir == "18")
-            {
-                $('.ver_1').show();
-                $('.ver_2').hide();
-                var cantidad = $('#cantidad_general').val();
-                var convertir = cantidad * 1000;
-                $('#resultado_final').val(convertir);
-                $('.convertir_si').show();
-            }else if(elegir == "41")
-            {
-                $('.ver_1').show();
-                $('.ver_2').show();
-                var cantidad = $('#cantidad_mililitros').val();
-                var convertir = cantidad * 1;
-                var resul = convertir / 30.00
-                $('#resultado_final').val(resul);
-                $('.convertir_si').show();
-            }else if(elegir == "35")
-            {
-                $('.ver_1').show();
-                $('.ver_2').hide();
-                var cantidad = $('#cantidad_general').val();
-                var convertir = cantidad * 1000;
-                $('#resultado_final').val(convertir);
-                $('.convertir_si').show();
-            }else if(elegir == "58")
-            {
-                $('.ver_1').show();
-                $('.ver_2').hide();
-                $('.convertir_si').show();
-            }
-        }
-        function spam_resta(id){
-            var spam_auto = $('#'+id);
-            var valor = spam_auto.val()
-            if(valor > 1){
-                valor--
-            }else{
-                valor = 1;
-            }
-            spam_auto.val(valor)
-        }
-        function spam_sumar(id){
-            var spam_auto= $('#'+id);
-            var valor = spam_auto.val()
-            valor++
-            spam_auto.val(valor)
+    {{-- TOTAL --}}
+    <div class="oc-total-card">
+        <div class="oc-total-label"><i class="fa-solid fa-sack-dollar me-2"></i>Total de la Compra</div>
+        <div class="oc-total-amount">S/ {{ number_format($total + $orden_compra->orden_compra_flete + $orden_compra->orden_compra_gastos_operativos, 2, '.', ',') }}</div>
+    </div>
 
-        }
-    </script>
+    {{-- TABLA PRODUCTOS --}}
+    <div class="oc-table-card">
+        <div class="oc-table-title"><i class="fa-solid fa-list-ul text-primary"></i> Productos de la compra</div>
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Familia</th>
+                        <th style="text-align:center">Cantidad</th>
+                        <th style="text-align:right">Precio Unit.</th>
+                        <th style="text-align:right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @php $a = 1; @endphp
+                @foreach($detalle_orden_compra as $de)
+                    <tr>
+                        <td style="color:#94a3b8;font-weight:600">{{ $a }}</td>
+                        <td>
+                            <div style="font-weight:600;color:#1e293b">{{ $de->detalle_orden_nombre_producto }}</div>
+                            @if($de->pro_codigo)
+                                <small class="text-muted oc-num">{{ $de->pro_codigo }}</small>
+                            @endif
+                        </td>
+                        <td>
+                            @if($de->fa_nombre)
+                                <span style="font-size:12px;background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:20px">{{ $de->familia_codigo }} · {{ $de->fa_nombre }}</span>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td style="text-align:center">
+                            <span style="font-weight:700;font-size:15px">{{ $de->detalle_compra_cantidad }}</span>
+                        </td>
+                        <td style="text-align:right" class="oc-num">S/ {{ number_format($de->detalle_compra_precio_compra, 2, '.', ',') }}</td>
+                        <td style="text-align:right">
+                            <span style="font-weight:700;color:#15803d;font-family:monospace">S/ {{ number_format($de->detalle_compra_total_pedido, 2, '.', ',') }}</span>
+                        </td>
+                    </tr>
+                    @php $a++; @endphp
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
 
+    {{-- BACK --}}
+    <div class="d-flex justify-content-end mb-4">
+        <a href="javascript:history.back();" class="oc-back-btn">
+            <i class="fa-solid fa-arrow-left"></i> Regresar
+        </a>
+    </div>
+
+</div>
+</div>
+@endcan
+</div>
 @endsection
-

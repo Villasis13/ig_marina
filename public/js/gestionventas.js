@@ -789,7 +789,7 @@ function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,pre
         }
     }
 
-    if(conteo > 1){
+    if(conteo > 1 && parseInt(control_serie) !== 1){
         respuesta('No es posible ingresar un producto más de una vez.', 'error');
         return;
     }
@@ -829,15 +829,28 @@ function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,pre
             dataType: 'json',
         }).done(function(r){
             let series = r.result.data;
+            $('#chk_series_all').prop('checked', false);
+            actualizarContadorSeries();
             if(series.length > 0){
+                // Marcar series ya agregadas en el carrito para este producto
+                let yaAgregadas = ventas_prtoductos
+                    .filter(p => p.id_pro == _pendingProductoSerie.id_pro)
+                    .map(p => String(p.id_serie_producto));
                 let body = '';
                 series.map(function(s){
-                    body += `<tr>
-                        <td><strong>${s.numero_serie}</strong></td>
+                    let yaEsta = yaAgregadas.includes(String(s.id_serie_producto));
+                    let disabled = yaEsta ? 'disabled title="Ya agregada"' : '';
+                    let trClass  = yaEsta ? 'class="table-secondary"' : '';
+                    body += `<tr ${trClass}>
+                        <td style="text-align:center;">
+                            <input type="checkbox" class="serie-check" value="${s.id_serie_producto}"
+                                data-serie="${s.numero_serie}" ${disabled} ${yaEsta ? 'checked' : ''}
+                                onchange="actualizarContadorSeries()">
+                        </td>
+                        <td><strong>${s.numero_serie}</strong>${yaEsta ? ' <span class="badge bg-secondary" style="font-size:10px">Agregada</span>' : ''}</td>
                         <td>${s.numero_motor || '---'}</td>
                         <td>${s.color || '---'}</td>
                         <td>${s.anio_fabricacion || '---'}</td>
-                        <td><button class="btn btn-sm btn-primary" onclick="seleccionar_serie(${s.id_serie_producto},'${s.numero_serie}')"><i class="fa fa-check"></i> Seleccionar</button></td>
                     </tr>`;
                 });
                 $('#tbody_series_vehiculo').html(body);
@@ -854,17 +867,50 @@ function capturar_valores_ventas_productos(id,nombre,afectacion,bolsa,precio,pre
     }
 }
 
-function seleccionar_serie(id_serie_producto, numero_serie){
-    if(_pendingProductoSerie){
-        _pendingProductoSerie.id_serie_producto = id_serie_producto;
-        _pendingProductoSerie.numero_serie = numero_serie;
-        ventas_prtoductos.push(_pendingProductoSerie);
-        _pendingProductoSerie = null;
-        localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
-        dibujar_tabla_ventas_productos();
-        $('#modal_series_vehiculo').modal('hide');
-        respuesta('Producto con serie ' + numero_serie + ' agregado.', 'success');
+function actualizarContadorSeries() {
+    let total    = document.querySelectorAll('#tbody_series_vehiculo .serie-check:not([disabled])').length;
+    let marcadas = document.querySelectorAll('#tbody_series_vehiculo .serie-check:not([disabled]):checked').length;
+    let el = document.getElementById('serie_contador');
+    if (el) el.textContent = marcadas + ' seleccionada(s)';
+    // sincronizar "seleccionar todas"
+    let chkAll = document.getElementById('chk_series_all');
+    if (chkAll) chkAll.checked = (total > 0 && marcadas === total);
+}
+
+function toggleTodasSeries(chkAll) {
+    document.querySelectorAll('#tbody_series_vehiculo .serie-check:not([disabled])').forEach(function(chk) {
+        chk.checked = chkAll.checked;
+    });
+    actualizarContadorSeries();
+}
+
+function confirmarSeleccionSeries() {
+    if (!_pendingProductoSerie) return;
+    let checks = document.querySelectorAll('#tbody_series_vehiculo .serie-check:not([disabled]):checked');
+    if (!checks.length) {
+        respuesta('Selecciona al menos una serie.', 'error');
+        return;
     }
+    let agregadas = 0;
+    checks.forEach(function(chk) {
+        let id_serie_producto = chk.value;
+        let numero_serie      = chk.getAttribute('data-serie');
+        // Evitar duplicado si ya está en el carrito
+        let yaEsta = ventas_prtoductos.some(function(p) {
+            return String(p.id_serie_producto) === String(id_serie_producto);
+        });
+        if (yaEsta) return;
+        let clone = Object.assign({}, _pendingProductoSerie);
+        clone.id_serie_producto = id_serie_producto;
+        clone.numero_serie      = numero_serie;
+        ventas_prtoductos.push(clone);
+        agregadas++;
+    });
+    _pendingProductoSerie = null;
+    localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
+    dibujar_tabla_ventas_productos();
+    $('#modal_series_vehiculo').modal('hide');
+    respuesta(agregadas + ' serie(s) agregada(s).', 'success');
 }
 function dibujar_tabla_ventas_productos(){
     let num = 1;
@@ -961,9 +1007,20 @@ function  cambiarDescripcion(index){
     dibujar_tabla_ventas_productos()
 }
 function eliminar_productos_ventas(index){
-    ventas_prtoductos.splice(index,1)
-    calcular_afectacion()
-    dibujar_tabla_ventas_productos()
+    let item = ventas_prtoductos[index];
+    // Si tenía serie y el modal sigue abierto, desmarcar su checkbox
+    if (item && item.id_serie_producto) {
+        let chk = document.querySelector('#tbody_series_vehiculo .serie-check[value="' + item.id_serie_producto + '"]');
+        if (chk) { chk.checked = false; chk.disabled = false; }
+        let tr = chk ? chk.closest('tr') : null;
+        if (tr) { tr.classList.remove('table-secondary'); }
+        let badge = tr ? tr.querySelector('.badge.bg-secondary') : null;
+        if (badge) badge.remove();
+        actualizarContadorSeries();
+    }
+    ventas_prtoductos.splice(index, 1);
+    calcular_afectacion();
+    dibujar_tabla_ventas_productos();
     localStorage.setItem('ventas_productos', JSON.stringify(ventas_prtoductos));
 
 }

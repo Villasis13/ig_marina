@@ -368,7 +368,7 @@ $(document).ready(function() {
     $('#dataTable13').DataTable({
         responsive: true,
         "language": {
-            sEmptyTable: "No existen datos en esta tabla",
+            sEmptyTable: "Usa los filtros y presiona Buscar para ver los productos.",
             sInfo: "Mostrando _START_ de _END_ de _TOTAL_ Entradas",
             sInfoEmpty: "0 de 0 de 0 Entradas",
             sInfoFiltered: "(Filtrado de un total de _MAX_ resultados)",
@@ -392,7 +392,6 @@ $(document).ready(function() {
             }
         }
     });
-    $('#dataTable13').DataTable();
     $('#dataTable14').DataTable({
         responsive: true,
         "language": {
