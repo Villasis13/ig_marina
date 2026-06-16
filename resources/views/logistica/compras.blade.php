@@ -347,10 +347,11 @@
 <script>
     function toggleCondicionCompra(val) {
         if (val === '1') { // Crédito
-            $('#div_tipo_pago').hide();
+            $('#div_tipo_pago').removeClass('d-flex').addClass('d-none');
+            $('#id_tipo_pago').val('');
             $('#div_fecha_vencimiento').css('display', 'flex');
         } else { // Contado
-            $('#div_tipo_pago').show();
+            $('#div_tipo_pago').removeClass('d-none').addClass('d-flex');
             $('#div_fecha_vencimiento').css('display', 'none');
         }
     }
