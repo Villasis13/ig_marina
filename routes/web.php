@@ -143,6 +143,8 @@ Route::prefix('logistica')->middleware('auth')->group(function () {
     route::post('/filtrar_productos',[LogisticaController::class ,'filtrar_productos'])->name('logistica.filtrar_productos');
     route::get('/exportar_productos_excel',[LogisticaController::class ,'exportar_productos_excel'])->name('logistica.exportar_productos_excel');
     route::post('/importar_productos_excel',[LogisticaController::class ,'importar_productos_excel'])->name('logistica.importar_productos_excel');
+    route::post('/importar_stock_producto',[LogisticaController::class ,'importar_stock_producto'])->name('logistica.importar_stock_producto');
+    route::post('/importar_stock_kardex',[LogisticaController::class ,'importar_stock_kardex'])->name('logistica.importar_stock_kardex');
     route::post('/crear_orden_compra',[LogisticaController::class ,'crear_orden_compra'])->name('logistica.crear_orden_compra')->middleware('can:crear_orden_compra');
     route::post('/eliminar_orden_compra',[LogisticaController::class ,'eliminar_orden_compra'])->name('logistica.eliminar_orden_compra')->middleware('can:eliminar_orden_compra');
 

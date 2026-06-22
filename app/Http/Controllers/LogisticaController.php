@@ -410,6 +410,100 @@ class LogisticaController extends Controller
         }
     }
 
+    public function importar_stock_producto(Request $request)
+    {
+        try {
+            if (!$request->hasFile('archivo_excel')) {
+                return response()->json(['result' => ['code' => 2, 'message' => 'No se recibió ningún archivo.']]);
+            }
+            $spreadsheet  = IOFactory::load($request->file('archivo_excel')->getRealPath());
+            $hoja         = $spreadsheet->getActiveSheet();
+            $maxFila      = $hoja->getHighestRow();
+
+            $actualizados   = 0;
+            $no_encontrados = 0;
+            $vacias_consec  = 0;
+
+            for ($fila = 6; $fila <= $maxFila; $fila++) {
+                $nombre = trim((string) $hoja->getCell('B' . $fila)->getValue());
+
+                if ($nombre === '') {
+                    $vacias_consec++;
+                    if ($vacias_consec >= 10) break;
+                    continue;
+                }
+                $vacias_consec = 0;
+
+                $stockRaw = $hoja->getCell('I' . $fila)->getValue();
+                if (!is_numeric($stockRaw)) continue;
+
+                $stock = floatval($stockRaw) < 0 ? 0 : floatval($stockRaw);
+
+                $producto = DB::table('productos')->where('pro_nombre', $nombre)->first();
+                if ($producto) {
+                    DB::table('productos')->where('id_pro', $producto->id_pro)
+                        ->update(['pro_stock' => $stock, 'updated_at' => now()]);
+                    $actualizados++;
+                } else {
+                    $no_encontrados++;
+                }
+            }
+
+            $mensaje = "✔ Actualizados: $actualizados | ✘ No encontrados: $no_encontrados";
+            return response()->json(['result' => ['code' => 1, 'message' => $mensaje]]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['result' => ['code' => 2, 'message' => 'Error: ' . $e->getMessage()]]);
+        }
+    }
+
+    public function importar_stock_kardex(Request $request)
+    {
+        try {
+            if (!$request->hasFile('archivo_excel')) {
+                return response()->json(['result' => ['code' => 2, 'message' => 'No se recibió ningún archivo.']]);
+            }
+            $spreadsheet  = IOFactory::load($request->file('archivo_excel')->getRealPath());
+            $hoja         = $spreadsheet->getActiveSheet();
+            $maxFila      = $hoja->getHighestRow();
+
+            $actualizados   = 0;
+            $no_encontrados = 0;
+            $vacias_consec  = 0;
+
+            for ($fila = 7; $fila <= $maxFila; $fila++) {
+                $nombre = trim((string) $hoja->getCell('B' . $fila)->getValue());
+
+                if ($nombre === '') {
+                    $vacias_consec++;
+                    if ($vacias_consec >= 10) break;
+                    continue;
+                }
+                $vacias_consec = 0;
+
+                $stockRaw = $hoja->getCell('K' . $fila)->getValue();
+                if (!is_numeric($stockRaw)) continue;
+
+                $stock = floatval($stockRaw) < 0 ? 0 : floatval($stockRaw);
+
+                $producto = DB::table('productos')->where('pro_nombre', $nombre)->first();
+                if ($producto) {
+                    DB::table('productos')->where('id_pro', $producto->id_pro)
+                        ->update(['pro_stock' => $stock, 'updated_at' => now()]);
+                    $actualizados++;
+                } else {
+                    $no_encontrados++;
+                }
+            }
+
+            $mensaje = "✔ Actualizados: $actualizados | ✘ No encontrados: $no_encontrados";
+            return response()->json(['result' => ['code' => 1, 'message' => $mensaje]]);
+        } catch (\Exception $e) {
+            $this->logs->insertarLog($e);
+            return response()->json(['result' => ['code' => 2, 'message' => 'Error: ' . $e->getMessage()]]);
+        }
+    }
+
     public function guardar_producto(Request $request)
     {
         try {

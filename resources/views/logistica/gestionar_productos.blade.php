@@ -252,6 +252,29 @@
                             </button>
                         </div>
                     </div>
+
+                    {{-- Importar stock --}}
+                    {{--<div class="row g-2 mt-1 pt-2 border-top align-items-center">
+                        <div class="col-auto">
+                            <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Importar Stock:</span>
+                        </div>
+                        <div class="col-auto">
+                            <input type="file" id="file_stock_producto" accept=".xlsx,.xls" style="display:none" onchange="importarStock('producto', this)">
+                            <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('file_stock_producto').click()">
+                                <i class="fa-solid fa-file-arrow-up"></i> Importar Stock Producto
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <input type="file" id="file_stock_kardex" accept=".xlsx,.xls" style="display:none" onchange="importarStock('kardex', this)">
+                            <button class="btn btn-sm btn-outline-warning" onclick="document.getElementById('file_stock_kardex').click()">
+                                <i class="fa-solid fa-file-arrow-up"></i> Importar Stock Kardex
+                            </button>
+                        </div>
+                        <div class="col-auto" id="import_stock_spinner" style="display:none;">
+                            <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                            <span style="font-size:12px;color:#64748b;margin-left:5px;">Importando...</span>
+                        </div>
+                    </div>--}}
                 </div>
             </div>
         </div>
@@ -457,6 +480,38 @@ function dibujarTablaProductos(productos) {
     });
     tbody.innerHTML = html;
     _dtInit();
+}
+
+function importarStock(tipo, input) {
+    if (!input.files || !input.files[0]) return;
+    const archivo = input.files[0];
+    input.value = ''; // limpiar para permitir reimportar mismo archivo
+
+    const url = tipo === 'kardex'
+        ? ruta_global + 'logistica/importar_stock_kardex'
+        : ruta_global + 'logistica/importar_stock_producto';
+
+    const formData = new FormData();
+    formData.append('archivo_excel', archivo);
+    formData.append('_token', _csrfToken);
+
+    document.getElementById('import_stock_spinner').style.display = '';
+
+    fetch(url, { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('import_stock_spinner').style.display = 'none';
+            if (data.result.code === 1) {
+                respuesta(data.result.message, 'success');
+                buscarProductos();
+            } else {
+                respuesta(data.result.message, 'error');
+            }
+        })
+        .catch(() => {
+            document.getElementById('import_stock_spinner').style.display = 'none';
+            respuesta('Error de conexión al importar.', 'error');
+        });
 }
 
 function exportarProductosExcel() {
